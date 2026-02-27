@@ -1,0 +1,13 @@
+# Build outputs
+target/
+
+# TestNG outputs
+test-output/
+
+# Allure outputs (generated)
+allure-results/
+allure-report/
+
+# Local Chrome profile (should not be committed)
+chrome-profile/
+
