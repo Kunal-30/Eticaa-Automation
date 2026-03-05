@@ -68,6 +68,13 @@ public class CandidatesPage {
     private final By expectedCTCSectionButton = By.xpath("//button[contains(text(),'Expected CTC') or text()='Expected CTC']");
     private final By noticePeriodSectionButton = By.xpath("//button[contains(text(),'Notice period') or text()='Notice period']");
 
+    // Personal Details section filters
+    private final By genderSectionButton = By.xpath("//button[contains(text(),'Gender') or contains(.,'Gender')]");
+    private final By maritalStatusSectionButton = By.xpath("//button[contains(text(),'Marital Status') or contains(.,'Marital Status') or contains(text(),'Marital')]");
+    private final By ageSectionButton = By.xpath("//button[contains(text(),'Age') or contains(.,'Age')]");
+    private final By physicallyChallengedSectionButton = By.xpath("//button[contains(text(),'Physically Challenged') or contains(.,'Physically Challenged') or contains(text(),'Physically')]");
+    private final By categorySectionButton = By.xpath("//button[contains(text(),'Category') or contains(.,'Category')]");
+
     public CandidatesPage(WebDriver driver, WebDriverWait wait) {
         this.driver = driver;
         this.wait = wait;
@@ -466,6 +473,116 @@ public class CandidatesPage {
         applyFilter();
     }
 
+    /**
+     * Personal Details – Gender filter. Options: Female, Male, Other.
+     */
+    @Step("Set Gender filter: {option}")
+    public void setGenderFilter(String option) {
+        setPersonalDetailsDropdownFilter(genderSectionButton, option, "Gender");
+    }
+
+    /**
+     * Personal Details – Marital Status filter. Options: Divorced, Married, Separated, Single/Unmarried.
+     */
+    @Step("Set Marital Status filter: {option}")
+    public void setMaritalStatusFilter(String option) {
+        setPersonalDetailsDropdownFilter(maritalStatusSectionButton, option, "Marital Status");
+    }
+
+    /**
+     * Personal Details – Age filter (min and max range).
+     */
+    @Step("Set Age filter: min={minAge}, max={maxAge}")
+    public void setAgeFilter(Integer minAge, Integer maxAge) {
+        if (minAge == null && maxAge == null) return;
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(ageSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(ageSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Age section button not found: " + e.getMessage());
+            return;
+        }
+        try {
+            By minInputBy = By.xpath("//label[normalize-space(text())='Min' or contains(text(),'Min')]/following-sibling::input | //input[@placeholder='Min' or contains(@placeholder,'Min')]");
+            By maxInputBy = By.xpath("//label[normalize-space(text())='Max' or contains(text(),'Max')]/following-sibling::input | //input[@placeholder='Max' or contains(@placeholder,'Max')]");
+            List<WebElement> minInputs = driver.findElements(minInputBy);
+            List<WebElement> maxInputs = driver.findElements(maxInputBy);
+            if (!minInputs.isEmpty() && minAge != null) {
+                WebElement minInput = minInputs.get(0);
+                ScrollHelper.scrollIntoView(driver, minInput);
+                minInput.clear();
+                minInput.sendKeys(String.valueOf(minAge));
+            }
+            if (!maxInputs.isEmpty() && maxAge != null) {
+                WebElement maxInput = maxInputs.get(0);
+                ScrollHelper.scrollIntoView(driver, maxInput);
+                maxInput.clear();
+                maxInput.sendKeys(String.valueOf(maxAge));
+            }
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Age min/max inputs: " + e.getMessage());
+        }
+        applyFilter();
+    }
+
+    /**
+     * Personal Details – Physically Challenged filter. Options: No, Yes.
+     */
+    @Step("Set Physically Challenged filter: {option}")
+    public void setPhysicallyChallengedFilter(String option) {
+        setPersonalDetailsDropdownFilter(physicallyChallengedSectionButton, option, "Physically Challenged");
+    }
+
+    /**
+     * Personal Details – Category filter. Options: General, OBC - Creamy, OBC - Non creamy, Other, Scheduled Caste (SC), Scheduled Tribe (ST).
+     */
+    @Step("Set Category filter: {option}")
+    public void setCategoryFilter(String option) {
+        setPersonalDetailsDropdownFilter(categorySectionButton, option, "Category");
+    }
+
+    /** Opens a Personal Details section, selects the option by visible text, then applies filter. */
+    private void setPersonalDetailsDropdownFilter(By sectionButton, String option, String sectionName) {
+        if (option == null || option.trim().isEmpty()) return;
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(sectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(sectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] " + sectionName + " section button not found: " + e.getMessage());
+            return;
+        }
+        try {
+            String optText = option.trim();
+            By optionLocator = By.xpath(
+                "//*[@role='listbox']//*[contains(normalize-space(.), '" + optText.replace("'", "''") + "')] | " +
+                "//*[@role='option'][contains(normalize-space(.), '" + optText.replace("'", "''") + "')] | " +
+                "//li[contains(normalize-space(.), '" + optText.replace("'", "''") + "')] | " +
+                "//div[contains(@class,'menu')]//*[contains(normalize-space(.), '" + optText.replace("'", "''") + "')] | " +
+                "//button[contains(normalize-space(.), '" + optText.replace("'", "''") + "')] | " +
+                "//span[contains(normalize-space(.), '" + optText.replace("'", "''") + "')]/ancestor::button | " +
+                "//*[normalize-space(text())='" + optText.replace("'", "''") + "']"
+            );
+            WebElement opt = wait.until(ExpectedConditions.elementToBeClickable(optionLocator));
+            ScrollHelper.scrollIntoView(driver, opt);
+            opt.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] " + sectionName + " dropdown/option '" + option + "': " + e.getMessage());
+        }
+        applyFilter();
+    }
+
     /** Apply filter: click Apply button if present, else send Enter. */
     public void applyFilter() {
         try {
@@ -492,8 +609,7 @@ public class CandidatesPage {
             WebElement el = wait.until(ExpectedConditions.visibilityOfElementLocated(resultCountBox));
             ScrollHelper.scrollIntoView(driver, el);
             String text = el.getText();
-            String num = text.replaceAll("[^0-9]", "");
-            int count = num.isEmpty() ? 0 : Integer.parseInt(num);
+            int count = parseFirstNumberFromText(text);
             System.out.println("[CANDIDATES] Result count for this filter: " + count + " (from " + text.trim() + ")");
             return count;
         } catch (Exception e) {
@@ -501,13 +617,27 @@ public class CandidatesPage {
                 WebElement fallback = wait.until(ExpectedConditions.visibilityOfElementLocated(resultCountFallback));
                 ScrollHelper.scrollIntoView(driver, fallback);
                 String text = fallback.getText();
-                String num = text.replaceAll("[^0-9]", "");
-                return num.isEmpty() ? 0 : Integer.parseInt(num);
+                int count = parseFirstNumberFromText(text);
+                return count;
             } catch (Exception e2) {
                 System.out.println("[CANDIDATES] Result count not found: " + e.getMessage());
                 return 0;
             }
         }
+    }
+
+    /** Parse only the first number from text (e.g. "8648 candidates for NP 0 - 15 days" -> 8648, not 8648015). */
+    private int parseFirstNumberFromText(String text) {
+        if (text == null || text.isEmpty()) return 0;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(text);
+        if (m.find()) {
+            try {
+                return Integer.parseInt(m.group(1));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
     }
 
     /** Get all visible candidate name links on current page. */
@@ -524,6 +654,13 @@ public class CandidatesPage {
         try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         js.executeScript("window.scrollTo(0, document.body.scrollHeight);");
         try { Thread.sleep(800); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    /** Scroll to top of page (e.g. after returning from candidate details tab). */
+    public void scrollToTop() {
+        org.openqa.selenium.JavascriptExecutor js = (org.openqa.selenium.JavascriptExecutor) driver;
+        js.executeScript("window.scrollTo(0, 0);");
+        try { Thread.sleep(400); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 
     /**

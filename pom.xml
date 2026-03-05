@@ -187,7 +187,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>
-                    <!-- Start SSH tunnel before integration tests / surefire -->
+                    <!-- Start SSH tunnel before integration tests / surefire (password-based SSH) -->
                     <execution>
                         <id>start-ssh-tunnel</id>
                         <phase>pre-integration-test</phase>
@@ -198,7 +198,7 @@
                             <executable>cmd</executable>
                             <arguments>
                                 <argument>/c</argument>
-                                <argument>echo [TUNNEL] Starting SSH tunnel... &amp; start \"ssh-tunnel\" ssh -i \"C:\Users\Lenovo\Downloads\session-sharing 2.pem\" -L 5432:localhost:5432 ubuntu@35.154.232.19 -N</argument>
+                                <argument>echo [TUNNEL] Starting SSH tunnel... &amp; start \"ssh-tunnel\" ssh -p 22 -L 5432:localhost:5432 dev@100.126.146.20 -N</argument>
                             </arguments>
                         </configuration>
                     </execution>

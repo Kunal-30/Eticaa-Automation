@@ -52,7 +52,7 @@ options.addArguments("--guest");
         driver.manage().window().maximize();
         // A longer wait time of 15 seconds is more reliable for web applications
         wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-        driver.get("https://dms.eticaatest.co.in/auth/login");
+        driver.get("https://dms.eticaadev.co.in/auth/login");
         // driver.get("https://dms.eticaa.com/auth/login");
         System.out.println("INFO: Browser launched and navigated to the application URL.");
     }

@@ -190,6 +190,79 @@ public class CandidateDetailsPage {
         return parseCTCFromPage("Expected CTC", "ECTC", "Expected Salary", "Expected CTC (Lakhs)");
     }
 
+    /**
+     * Gets Notice Period value from the page (e.g. "Immediate Joiner", "0 - 15 days", "1 month", "2 months", "3 months").
+     * Searches for "Notice Period", "Notice period", "Notice:" labels and extracts the adjacent value.
+     * Handles formats: "Notice Period: 0 - 15 days" or "Notice Period" followed by value on same/next line.
+     * Returns empty string if not found.
+     */
+    public String getNoticePeriod() {
+        try {
+            String bodyText = driver.findElement(By.tagName("body")).getText();
+            if (bodyText == null || bodyText.isEmpty()) return "";
+            String[] labels = {"Notice Period:", "Notice period:", "Notice:", "Notice Period", "Notice period"};
+            for (String label : labels) {
+                int idx = bodyText.indexOf(label);
+                if (idx < 0) continue;
+                String after = bodyText.substring(idx + label.length()).trim();
+                if (after.isEmpty()) continue;
+                String firstLine = after.split("\\r?\\n")[0].trim();
+                if (!firstLine.isEmpty() && firstLine.length() < 80 && !firstLine.equalsIgnoreCase("Notice")) {
+                    return firstLine;
+                }
+            }
+            return "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Gets Gender from Personal Details section (e.g. Female, Male, Other). */
+    public String getGender() {
+        return getValueAfterLabel("Gender:", "Gender");
+    }
+
+    /** Gets Marital Status from Personal Details section (e.g. Single/Unmarried, Married, Divorced, Separated). */
+    public String getMaritalStatus() {
+        return getValueAfterLabel("Marital Status:", "Marital Status", "Marital:");
+    }
+
+    /** Gets Age from Personal Details section (e.g. "25" or "30 years"). */
+    public String getAge() {
+        String raw = getValueAfterLabel("Age:", "Age");
+        if (raw == null || raw.isEmpty()) return "";
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(raw);
+        return m.find() ? m.group(1) : raw.trim();
+    }
+
+    /** Gets Physically Challenged from Personal Details section (e.g. No, Yes). */
+    public String getPhysicallyChallenged() {
+        return getValueAfterLabel("Physically Challenged:", "Physically Challenged", "Physically:");
+    }
+
+    /** Gets Category from Personal Details section (e.g. General, OBC - Creamy, SC, ST). */
+    public String getCategory() {
+        return getValueAfterLabel("Category:", "Category");
+    }
+
+    private String getValueAfterLabel(String... labels) {
+        try {
+            String bodyText = driver.findElement(By.tagName("body")).getText();
+            if (bodyText == null || bodyText.isEmpty()) return "";
+            for (String label : labels) {
+                int idx = bodyText.indexOf(label);
+                if (idx < 0) continue;
+                String after = bodyText.substring(idx + label.length()).trim();
+                if (after.isEmpty()) continue;
+                String firstLine = after.split("\\r?\\n")[0].trim();
+                if (!firstLine.isEmpty() && firstLine.length() < 120) return firstLine;
+            }
+            return "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private Double parseCTCFromPage(String... labels) {
         try {
             String bodyText = driver.findElement(By.tagName("body")).getText();

@@ -68,12 +68,385 @@ public class superadmintest extends basePage {
     String user2Customer2Email = "user2@customertwo.com";
     String user2Customer2EmailLogin = "user2@customertwo.com";
 
-    /** Default pagination size (candidates per page). Used to compute total pages and sample 2–3 per page. */
+    /** Default pagination size (candidates per page). Used to compute total pages and sample 2–4 per page. */
     private static final int PAGE_SIZE = 25;
+
+    // ======= Shared helper table model & printers for advanced filters (starting with Company) =======
+
+    /** Table row for Company filter results (one row per sampled candidate). */
+    private static class CompanyFilterResultRow {
+        final String candidateName;
+        final String filterValue;
+        final String filterType; // Current / Past / Current+Past
+        final boolean match;     // true = MATCH, false = MARKED
+
+        CompanyFilterResultRow(String candidateName, String filterValue, String filterType, boolean match) {
+            this.candidateName = candidateName;
+            this.filterValue = filterValue;
+            this.filterType = filterType;
+            this.match = match;
+        }
+    }
+
+    /** Table row for Location filter results. */
+    private static class LocationFilterResultRow {
+        final String candidateName;
+        final String city;
+        final String mode;
+        final String currentLocation;
+        final String preferredLocations;
+        final boolean match;
+
+        LocationFilterResultRow(String candidateName, String city, String mode,
+                                String currentLocation, String preferredLocations, boolean match) {
+            this.candidateName = candidateName;
+            this.city = city;
+            this.mode = mode;
+            this.currentLocation = currentLocation;
+            this.preferredLocations = preferredLocations;
+            this.match = match;
+        }
+    }
+
+    /** Table row for Designation filter results. */
+    private static class DesignationFilterResultRow {
+        final String candidateName;
+        final String filterDesignation;
+        final String currentDesignation;
+        final boolean match;
+
+        DesignationFilterResultRow(String candidateName, String filterDesignation,
+                                   String currentDesignation, boolean match) {
+            this.candidateName = candidateName;
+            this.filterDesignation = filterDesignation;
+            this.currentDesignation = currentDesignation;
+            this.match = match;
+        }
+    }
+
+    /** Table row for Experience filter results. */
+    private static class ExperienceFilterResultRow {
+        final String candidateName;
+        final int minYears;
+        final int maxYears;
+        final String experienceText;
+        final Double experienceYears;
+        final boolean inRange;
+
+        ExperienceFilterResultRow(String candidateName, int minYears, int maxYears,
+                                  String experienceText, Double experienceYears, boolean inRange) {
+            this.candidateName = candidateName;
+            this.minYears = minYears;
+            this.maxYears = maxYears;
+            this.experienceText = experienceText;
+            this.experienceYears = experienceYears;
+            this.inRange = inRange;
+        }
+    }
+
+    /** Table row for Current CTC filter results. */
+    private static class CurrentCTCFilterResultRow {
+        final String candidateName;
+        final int minLakhs;
+        final int maxLakhs;
+        final Double ctcLakhs;
+        final boolean inRange;
+
+        CurrentCTCFilterResultRow(String candidateName, int minLakhs, int maxLakhs,
+                                  Double ctcLakhs, boolean inRange) {
+            this.candidateName = candidateName;
+            this.minLakhs = minLakhs;
+            this.maxLakhs = maxLakhs;
+            this.ctcLakhs = ctcLakhs;
+            this.inRange = inRange;
+        }
+    }
+
+    /** Table row for Expected CTC filter results. */
+    private static class ExpectedCTCFilterResultRow {
+        final String candidateName;
+        final int minLakhs;
+        final int maxLakhs;
+        final Double ctcLakhs;
+        final boolean inRange;
+
+        ExpectedCTCFilterResultRow(String candidateName, int minLakhs, int maxLakhs,
+                                   Double ctcLakhs, boolean inRange) {
+            this.candidateName = candidateName;
+            this.minLakhs = minLakhs;
+            this.maxLakhs = maxLakhs;
+            this.ctcLakhs = ctcLakhs;
+            this.inRange = inRange;
+        }
+    }
+
+    /** Helper to truncate long strings so console tables stay aligned. */
+    private String truncate(String text, int maxLen) {
+        if (text == null) return "";
+        if (text.length() <= maxLen) return text;
+        return text.substring(0, maxLen - 3) + "...";
+    }
+
+    /** Print a detailed console table summarizing one Company filter value. */
+    private void printCompanyFilterSummaryTable(String filterValue,
+                                                String filterType,
+                                                int totalCount,
+                                                int sampledCount,
+                                                List<CompanyFilterResultRow> rows) {
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
+        long matchCount = rows.stream().filter(r -> r.match).count();
+        long markedCount = rows.size() - matchCount;
+
+        System.out.println("======================================================================");
+        System.out.println("[ADV FILTER][COMPANY] FILTER SUMMARY");
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println("Filter Type      : Company");
+        System.out.println("Filter Value     : " + filterValue);
+        System.out.println("Filter Mode      : " + filterType);
+        System.out.println("Total Results    : " + totalCount);
+        System.out.println("Rows per Page    : " + PAGE_SIZE);
+        System.out.println("Total Pages      : " + totalPages);
+        System.out.println("Profiles Sampled : " + sampledCount);
+        System.out.println("MATCH            : " + matchCount);
+        System.out.println("MARKED           : " + markedCount);
+        System.out.println("======================================================================");
+
+        String headerFormat = "| %-3s | %-30s | %-15s | %-8s |%n";
+        String rowFormat    = "| %-3d | %-30s | %-15s | %-8s |%n";
+
+        System.out.printf(headerFormat, "#", "Candidate Name", "Filter Mode", "Result");
+        System.out.println("----------------------------------------------------------------------");
+
+        int index = 1;
+        for (CompanyFilterResultRow r : rows) {
+            String resultText = r.match ? "MATCH" : "MARKED";
+            System.out.printf(rowFormat, index++, truncate(r.candidateName, 30), r.filterType, resultText);
+        }
+        System.out.println("----------------------------------------------------------------------");
+    }
+
+    /** Print summary table for one Location filter value. */
+    private void printLocationFilterSummaryTable(String city,
+                                                 String mode,
+                                                 int totalCount,
+                                                 int sampledCount,
+                                                 List<LocationFilterResultRow> rows) {
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
+        long matchCount = rows.stream().filter(r -> r.match).count();
+        long markedCount = rows.size() - matchCount;
+
+        System.out.println("======================================================================");
+        System.out.println("[ADV FILTER][LOCATION] FILTER SUMMARY");
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println("Filter Type      : Location");
+        System.out.println("City             : " + city);
+        System.out.println("Mode             : " + mode);
+        System.out.println("Total Results    : " + totalCount);
+        System.out.println("Rows per Page    : " + PAGE_SIZE);
+        System.out.println("Total Pages      : " + totalPages);
+        System.out.println("Profiles Sampled : " + sampledCount);
+        System.out.println("MATCH            : " + matchCount);
+        System.out.println("MARKED           : " + markedCount);
+        System.out.println("======================================================================");
+
+        String headerFormat = "| %-3s | %-30s | %-12s | %-20s | %-20s | %-8s |%n";
+        String rowFormat    = "| %-3d | %-30s | %-12s | %-20s | %-20s | %-8s |%n";
+
+        System.out.printf(headerFormat, "#", "Candidate Name", "Mode", "Current Loc", "Preferred Locs", "Result");
+        System.out.println("----------------------------------------------------------------------");
+
+        int index = 1;
+        for (LocationFilterResultRow r : rows) {
+            String resultText = r.match ? "MATCH" : "MARKED";
+            System.out.printf(
+                rowFormat,
+                index++,
+                truncate(r.candidateName, 30),
+                truncate(r.mode, 12),
+                truncate(r.currentLocation, 20),
+                truncate(r.preferredLocations, 20),
+                resultText
+            );
+        }
+        System.out.println("----------------------------------------------------------------------");
+    }
+
+    /** Print summary table for one Designation filter value. */
+    private void printDesignationFilterSummaryTable(String designation,
+                                                    int totalCount,
+                                                    int sampledCount,
+                                                    List<DesignationFilterResultRow> rows) {
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
+        long matchCount = rows.stream().filter(r -> r.match).count();
+        long markedCount = rows.size() - matchCount;
+
+        System.out.println("======================================================================");
+        System.out.println("[ADV FILTER][DESIGNATION] FILTER SUMMARY");
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println("Filter Type      : Designation");
+        System.out.println("Filter Value     : " + designation);
+        System.out.println("Total Results    : " + totalCount);
+        System.out.println("Rows per Page    : " + PAGE_SIZE);
+        System.out.println("Total Pages      : " + totalPages);
+        System.out.println("Profiles Sampled : " + sampledCount);
+        System.out.println("MATCH            : " + matchCount);
+        System.out.println("MARKED           : " + markedCount);
+        System.out.println("======================================================================");
+
+        String headerFormat = "| %-3s | %-30s | %-25s | %-25s | %-8s |%n";
+        String rowFormat    = "| %-3d | %-30s | %-25s | %-25s | %-8s |%n";
+
+        System.out.printf(headerFormat, "#", "Candidate Name", "Filter Designation", "Current Designation", "Result");
+        System.out.println("----------------------------------------------------------------------");
+
+        int index = 1;
+        for (DesignationFilterResultRow r : rows) {
+            String resultText = r.match ? "MATCH" : "MARKED";
+            System.out.printf(
+                rowFormat,
+                index++,
+                truncate(r.candidateName, 30),
+                truncate(r.filterDesignation, 25),
+                truncate(r.currentDesignation, 25),
+                resultText
+            );
+        }
+        System.out.println("----------------------------------------------------------------------");
+    }
+
+    /** Print summary table for one Experience range. */
+    private void printExperienceFilterSummaryTable(int min,
+                                                   int max,
+                                                   int totalCount,
+                                                   int sampledCount,
+                                                   List<ExperienceFilterResultRow> rows) {
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
+        long inRangeCount = rows.stream().filter(r -> r.inRange).count();
+        long outOfRangeCount = rows.size() - inRangeCount;
+
+        System.out.println("======================================================================");
+        System.out.println("[ADV FILTER][EXPERIENCE] FILTER SUMMARY");
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println("Range (years)    : " + min + " – " + max);
+        System.out.println("Total Results    : " + totalCount);
+        System.out.println("Rows per Page    : " + PAGE_SIZE);
+        System.out.println("Total Pages      : " + totalPages);
+        System.out.println("Profiles Sampled : " + sampledCount);
+        System.out.println("In Range         : " + inRangeCount);
+        System.out.println("Out of Range     : " + outOfRangeCount);
+        System.out.println("======================================================================");
+
+        String headerFormat = "| %-3s | %-30s | %-15s | %-12s | %-10s |%n";
+        String rowFormat    = "| %-3d | %-30s | %-15s | %-12s | %-10s |%n";
+
+        System.out.printf(headerFormat, "#", "Candidate Name", "Experience Text", "Years Parsed", "Result");
+        System.out.println("----------------------------------------------------------------------");
+
+        int index = 1;
+        for (ExperienceFilterResultRow r : rows) {
+            String yearsText = r.experienceYears != null ? String.valueOf(r.experienceYears) : "-";
+            String resultText = r.inRange ? "IN RANGE" : "OUT";
+            System.out.printf(
+                rowFormat,
+                index++,
+                truncate(r.candidateName, 30),
+                truncate(r.experienceText, 15),
+                yearsText,
+                resultText
+            );
+        }
+        System.out.println("----------------------------------------------------------------------");
+    }
+
+    /** Print summary table for one Current CTC range. */
+    private void printCurrentCTCFilterSummaryTable(int min,
+                                                   int max,
+                                                   int totalCount,
+                                                   int sampledCount,
+                                                   List<CurrentCTCFilterResultRow> rows) {
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
+        long inRangeCount = rows.stream().filter(r -> r.inRange).count();
+        long outOfRangeCount = rows.size() - inRangeCount;
+
+        System.out.println("======================================================================");
+        System.out.println("[ADV FILTER][CURRENT CTC] FILTER SUMMARY");
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println("Range (Lakhs)    : " + min + " – " + max);
+        System.out.println("Total Results    : " + totalCount);
+        System.out.println("Rows per Page    : " + PAGE_SIZE);
+        System.out.println("Total Pages      : " + totalPages);
+        System.out.println("Profiles Sampled : " + sampledCount);
+        System.out.println("In Range         : " + inRangeCount);
+        System.out.println("Out of Range     : " + outOfRangeCount);
+        System.out.println("======================================================================");
+
+        String headerFormat = "| %-3s | %-30s | %-10s | %-10s |%n";
+        String rowFormat    = "| %-3d | %-30s | %-10s | %-10s |%n";
+
+        System.out.printf(headerFormat, "#", "Candidate Name", "Current CTC", "Result");
+        System.out.println("----------------------------------------------------------------------");
+
+        int index = 1;
+        for (CurrentCTCFilterResultRow r : rows) {
+            String ctcText = r.ctcLakhs != null ? r.ctcLakhs + "L" : "N/A";
+            String resultText = r.inRange ? "IN RANGE" : "OUT";
+            System.out.printf(
+                rowFormat,
+                index++,
+                truncate(r.candidateName, 30),
+                ctcText,
+                resultText
+            );
+        }
+        System.out.println("----------------------------------------------------------------------");
+    }
+
+    /** Print summary table for one Expected CTC range. */
+    private void printExpectedCTCFilterSummaryTable(int min,
+                                                    int max,
+                                                    int totalCount,
+                                                    int sampledCount,
+                                                    List<ExpectedCTCFilterResultRow> rows) {
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
+        long inRangeCount = rows.stream().filter(r -> r.inRange).count();
+        long outOfRangeCount = rows.size() - inRangeCount;
+
+        System.out.println("======================================================================");
+        System.out.println("[ADV FILTER][EXPECTED CTC] FILTER SUMMARY");
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println("Range (Lakhs)    : " + min + " – " + max);
+        System.out.println("Total Results    : " + totalCount);
+        System.out.println("Rows per Page    : " + PAGE_SIZE);
+        System.out.println("Total Pages      : " + totalPages);
+        System.out.println("Profiles Sampled : " + sampledCount);
+        System.out.println("In Range         : " + inRangeCount);
+        System.out.println("Out of Range     : " + outOfRangeCount);
+        System.out.println("======================================================================");
+
+        String headerFormat = "| %-3s | %-30s | %-10s | %-10s |%n";
+        String rowFormat    = "| %-3d | %-30s | %-10s | %-10s |%n";
+
+        System.out.printf(headerFormat, "#", "Candidate Name", "Expected CTC", "Result");
+        System.out.println("----------------------------------------------------------------------");
+
+        int index = 1;
+        for (ExpectedCTCFilterResultRow r : rows) {
+            String ctcText = r.ctcLakhs != null ? r.ctcLakhs + "L" : "N/A";
+            String resultText = r.inRange ? "IN RANGE" : "OUT";
+            System.out.printf(
+                rowFormat,
+                index++,
+                truncate(r.candidateName, 30),
+                ctcText,
+                resultText
+            );
+        }
+        System.out.println("----------------------------------------------------------------------");
+    }
 
     /**
      * For each page 1..totalPages (based on totalCount and PAGE_SIZE), navigates to that page,
-     * picks 2–3 random candidate links, and calls processOne(link, pageNum) for each.
+     * picks 2–4 random candidate links, and calls processOne(link, pageNum) for each.
      * Only used when totalCount > 25 (pagination is visible).
      */
     private void forEachPageSampleCandidates(CandidatesPage candidatesPage, int totalCount, String parentHandle,
@@ -89,7 +462,7 @@ public class superadmintest extends basePage {
             }
             List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
             if (links.isEmpty()) continue;
-            int sampleCount = Math.min(2 + rnd.nextInt(2), links.size()); // 2 or 3 per page
+            int sampleCount = Math.min(2 + rnd.nextInt(3), links.size()); // 2, 3 or 4 per page
             List<Integer> indices = new ArrayList<>();
             for (int i = 0; i < links.size(); i++) indices.add(i);
             Collections.shuffle(indices);
@@ -104,7 +477,7 @@ public class superadmintest extends basePage {
 
     /**
      * Sample candidates for one applied filter. Pagination is only visible when results > 25.
-     * - If totalCount > 25: use pagination, 2–3 random per page.
+     * - If totalCount > 25: use pagination, 2–4 random per page.
      * - If totalCount <= 25: no pagination; open 10–12 randomly (or all if fewer).
      */
     private void sampleCandidatesForFilter(CandidatesPage candidatesPage, int totalCount, String parentHandle,
@@ -112,7 +485,7 @@ public class superadmintest extends basePage {
         if (totalCount <= 0) return;
         Random rnd = new Random();
         if (totalCount > PAGE_SIZE) {
-            System.out.println("[CANDIDATES] Results = " + totalCount + " (> " + PAGE_SIZE + "): pagination visible. Sampling 2–3 per page.");
+            System.out.println("[CANDIDATES] Results = " + totalCount + " (> " + PAGE_SIZE + "): pagination visible. Sampling 2–4 per page.");
             forEachPageSampleCandidates(candidatesPage, totalCount, parentHandle, processOne);
         } else {
             System.out.println("[CANDIDATES] Results = " + totalCount + " (≤ " + PAGE_SIZE + "): no pagination. Sampling from single page.");
@@ -126,6 +499,86 @@ public class superadmintest extends basePage {
             }
             toOpen = Math.min(toOpen, links.size());
             System.out.println("[CANDIDATES] Opening " + toOpen + " of " + links.size() + " candidates (from Page 1).");
+            List<Integer> indices = new ArrayList<>();
+            for (int i = 0; i < links.size(); i++) indices.add(i);
+            Collections.shuffle(indices);
+            for (int j = 0; j < toOpen; j++) {
+                int idx = indices.get(j);
+                List<WebElement> currentLinks = candidatesPage.getCandidateNameLinksOnCurrentPage();
+                if (idx >= currentLinks.size()) continue;
+                processOne.accept(currentLinks.get(idx), 1);
+            }
+        }
+    }
+
+    /**
+     * For each page 1..totalPages, navigates to that page, picks up to perPageCount random candidate links
+     * (or all if fewer on the page), and calls processOne for each. Scrolls to bottom before page change (pagination
+     * visible only at bottom), then scrolls to top after page load to show the candidate list.
+     */
+    private void forEachPageSampleCandidatesFixedCount(CandidatesPage candidatesPage, int totalCount, String parentHandle,
+            int perPageCount, BiConsumer<WebElement, Integer> processOne) throws InterruptedException {
+        int totalPages = (int) Math.ceil((double) totalCount / PAGE_SIZE);
+        if (totalPages <= 0) return;
+        for (int pageNum = 1; pageNum <= totalPages; pageNum++) {
+            System.out.println("[NOTICE PERIOD] Opening page " + pageNum + " of " + totalPages + " (assert: sampling from page " + pageNum + ").");
+            if (pageNum > 1) {
+                candidatesPage.scrollToBottom();
+                Thread.sleep(400);
+                candidatesPage.selectPage(pageNum);
+                Thread.sleep(800);
+                candidatesPage.scrollToTop();
+                Thread.sleep(400);
+            }
+            List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
+            if (links.isEmpty()) continue;
+            int toOpen = Math.min(perPageCount, links.size());
+            System.out.println("[NOTICE PERIOD] Page " + pageNum + ": sampling " + toOpen + " random candidates of " + links.size() + ".");
+            List<Integer> indices = new ArrayList<>();
+            for (int i = 0; i < links.size(); i++) indices.add(i);
+            Collections.shuffle(indices);
+            for (int j = 0; j < toOpen; j++) {
+                int idx = indices.get(j);
+                List<WebElement> currentLinks = candidatesPage.getCandidateNameLinksOnCurrentPage();
+                if (idx >= currentLinks.size()) continue;
+                processOne.accept(currentLinks.get(idx), pageNum);
+                candidatesPage.scrollToTop();
+                Thread.sleep(300);
+            }
+        }
+    }
+
+    /** Returns true if the notice period value on details page matches/falls within the applied filter. */
+    private boolean noticePeriodMatchesFilter(String filterValue, String valueFoundOnDetails) {
+        if (valueFoundOnDetails == null || valueFoundOnDetails.trim().isEmpty()) return false;
+        String f = filterValue == null ? "" : filterValue.trim().toLowerCase().replaceAll("\\s+", " ");
+        String v = valueFoundOnDetails.trim().toLowerCase().replaceAll("\\s+", " ");
+        if (f.isEmpty()) return true;
+        if (v.contains(f) || f.contains(v)) return true;
+        if (f.contains("immediate") && (v.contains("immediate") || v.contains("0 day"))) return true;
+        if (f.contains("0 - 15") && (v.contains("15") || v.contains("0") || v.contains("immediate"))) return true;
+        if (f.contains("1 month") && (v.contains("1 month") || v.contains("30"))) return true;
+        if (f.contains("2 month") && (v.contains("2 month") || v.contains("60"))) return true;
+        if (f.contains("3 month") && (v.contains("3 month") || v.contains("90"))) return true;
+        return false;
+    }
+
+    /**
+     * Sample candidates with a fixed count per page. If totalCount > PAGE_SIZE: open all pages, perPageCount per page.
+     * If totalCount <= PAGE_SIZE: no pagination; open min(perPageCount, links.size()) from single page.
+     */
+    private void sampleCandidatesForFilterFixedPerPage(CandidatesPage candidatesPage, int totalCount, String parentHandle,
+            int perPageCount, BiConsumer<WebElement, Integer> processOne) throws InterruptedException {
+        if (totalCount <= 0) return;
+        if (totalCount > PAGE_SIZE) {
+            int totalPages = (int) Math.ceil((double) totalCount / PAGE_SIZE);
+            System.out.println("[NOTICE PERIOD] Results = " + totalCount + " -> " + totalPages + " pages (25 per page). Sampling " + perPageCount + " per page.");
+            forEachPageSampleCandidatesFixedCount(candidatesPage, totalCount, parentHandle, perPageCount, processOne);
+        } else {
+            List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
+            if (links.isEmpty()) return;
+            int toOpen = Math.min(perPageCount, links.size());
+            System.out.println("[NOTICE PERIOD] Results = " + totalCount + " (single page). Opening " + toOpen + " of " + links.size() + " candidates.");
             List<Integer> indices = new ArrayList<>();
             for (int i = 0; i < links.size(); i++) indices.add(i);
             Collections.shuffle(indices);
@@ -170,7 +623,7 @@ public class superadmintest extends basePage {
          CustomerPage customerPage = new CustomerPage(driver, wait);
          UserPage userPage = new UserPage(driver, wait);
         System.out.println("INFO: Logging in as Super Admin...");
-        loginPage.loginAs("test@gmail.com", "Test@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             // Case 1: Conflict message shown on page
             By conflictMsgLocator = By.xpath("//div[contains(text(),'You have logged in on another device')]");
@@ -381,7 +834,7 @@ public class superadmintest extends basePage {
         // ====================================================================
         System.out.println("\n[PHASE 1] Super Admin: Creating customer...");
         System.out.println("[INFO] Logging in as Super Admin...");
-        loginPage.loginAs("test@gmail.com", "Test@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         
         try {
     By conflictMsgLocator = By.xpath("//div[contains(text(),'You have logged in on another device')]");
@@ -577,7 +1030,7 @@ public class superadmintest extends basePage {
         DashboardPage dashboardPage = new DashboardPage(driver, wait);
 
         System.out.println("\n[PHASE 1] Login as Super Admin and land on dashboard...");
-        loginPage.loginAs("test@gmail.com", "Test@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsgLocator = By.xpath("//div[contains(text(),'You have logged in on another device')]");
             WebElement conflictMsg = wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsgLocator));
@@ -666,7 +1119,7 @@ public class superadmintest extends basePage {
         }
 
         loginPage loginPage = new loginPage(driver);
-        loginPage.loginAs("test@gmail.com", "Test@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
             if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
@@ -696,12 +1149,15 @@ public class superadmintest extends basePage {
             candidatesPage.setFilterByType(filterType, filterValue, type);
 
             int totalCount = candidatesPage.getResultCount();
+            int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / PAGE_SIZE) : 0;
             System.out.println("\n" + "=".repeat(60));
-            System.out.println("[ADVANCE FILTER] Filter: " + filterType + " = " + filterValue + " (Type: " + type + ") | Total results: " + totalCount);
+            System.out.println("[ADVANCE FILTER][COMPANY] Filter applied: " + filterType + " = " + filterValue + " (Type: " + type + ")");
+            System.out.println("[ADVANCE FILTER][COMPANY] Total results: " + totalCount + " | Rows per page: " + PAGE_SIZE + " | Pages: " + totalPages);
             System.out.println("=".repeat(60));
 
             List<String> matchedCandidateNames = new ArrayList<>();
             List<String> markedCandidateNames = new ArrayList<>();
+            List<CompanyFilterResultRow> companyRowsForThisFilter = new ArrayList<>();
             String parentHandle = driver.getWindowHandle();
 
             sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
@@ -725,6 +1181,8 @@ public class superadmintest extends basePage {
                         markedCandidateNames.add(candidateName);
                         System.out.println("[ADVANCE FILTER] Candidate = " + candidateName + " (from Page " + pageNum + ") | MARKED (value not found) | Filter: " + filterType + " = " + filterValue);
                     }
+                    // Add row for detailed summary table (per sampled candidate)
+                    companyRowsForThisFilter.add(new CompanyFilterResultRow(candidateName, filterValue, row.getType(), found));
                     driver.close();
                     driver.switchTo().window(parentHandle);
                     Thread.sleep(500);
@@ -739,6 +1197,15 @@ public class superadmintest extends basePage {
                 + ", Marked = " + markedCandidateNames.size()
                 + ". Matched: " + matchedCandidateNames
                 + ", Marked: " + markedCandidateNames);
+
+            // Detailed table for this Company filter value
+            printCompanyFilterSummaryTable(
+                filterValue,
+                row.getType(),
+                totalCount,
+                companyRowsForThisFilter.size(),
+                companyRowsForThisFilter
+            );
             System.out.println("=".repeat(60) + "\n");
         }
 
@@ -780,7 +1247,7 @@ public class superadmintest extends basePage {
         }
 
         loginPage loginPage = new loginPage(driver);
-        loginPage.loginAs("test@gmail.com", "Test@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
             if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
@@ -817,6 +1284,7 @@ public class superadmintest extends basePage {
 
             List<String> matchedCandidateNames = new ArrayList<>();
             List<String> markedCandidateNames = new ArrayList<>();
+            List<LocationFilterResultRow> locationRowsForThisFilter = new ArrayList<>();
             String parentHandle = driver.getWindowHandle();
 
             sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
@@ -832,6 +1300,8 @@ public class superadmintest extends basePage {
                     }
                     CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
                     String candidateName = detailsPage.getCandidateName();
+                    String currentLocationOnPage = detailsPage.getCurrentLocation();
+                    String preferredLocationsOnPage = detailsPage.getPrefLocations();
                     boolean found = detailsPage.isFilterValuePresentInSection("Location", city, mode, "Include", "");
                     if (found) {
                         matchedCandidateNames.add(candidateName);
@@ -840,6 +1310,15 @@ public class superadmintest extends basePage {
                         markedCandidateNames.add(candidateName);
                         System.out.println("[ADVANCE FILTER][LOCATION] Candidate = " + candidateName + " (from Page " + pageNum + ") | MARKED | City = " + city);
                     }
+                    // Add row for detailed Location summary table
+                    locationRowsForThisFilter.add(new LocationFilterResultRow(
+                        candidateName,
+                        city,
+                        mode,
+                        currentLocationOnPage,
+                        preferredLocationsOnPage,
+                        found
+                    ));
                     driver.close();
                     driver.switchTo().window(parentHandle);
                     Thread.sleep(500);
@@ -855,6 +1334,14 @@ public class superadmintest extends basePage {
                 + ", Marked = " + markedCandidateNames.size()
                 + ". Matched: " + matchedCandidateNames
                 + ", Marked: " + markedCandidateNames);
+            // Detailed table for this Location filter value
+            printLocationFilterSummaryTable(
+                city,
+                mode,
+                totalCount,
+                locationRowsForThisFilter.size(),
+                locationRowsForThisFilter
+            );
             System.out.println("=".repeat(60) + "\n");
         }
 
@@ -902,8 +1389,8 @@ public class superadmintest extends basePage {
         }
 
         loginPage loginPage = new loginPage(driver);
-        // loginPage.loginAs("test@gmail.com", "Test@123");
-        loginPage.loginAs("admin@eticaa.com", "Admin@123");
+        // loginPage.loginAs("admin10@gmail.com", "Admin@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
             if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
@@ -936,6 +1423,7 @@ public class superadmintest extends basePage {
 
             List<String> matchedCandidateNames = new ArrayList<>();
             List<String> markedCandidateNames = new ArrayList<>();
+            List<DesignationFilterResultRow> designationRowsForThisFilter = new ArrayList<>();
             String parentHandle = driver.getWindowHandle();
 
             sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
@@ -951,6 +1439,7 @@ public class superadmintest extends basePage {
                     }
                     CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
                     String candidateName = detailsPage.getCandidateName();
+                    String currentDesignation = detailsPage.getDesignationFromCurrent();
                     boolean found = detailsPage.isFilterValuePresentInSection("Designation", designation, row.getType(), row.getIncludeExclude(), row.getNotes());
                     if (found) {
                         matchedCandidateNames.add(candidateName);
@@ -959,6 +1448,13 @@ public class superadmintest extends basePage {
                         markedCandidateNames.add(candidateName);
                         System.out.println("[ADVANCE FILTER][DESIGNATION] Candidate = " + candidateName + " (from Page " + pageNum + ") | MARKED | Designation not found for filter = " + designation);
                     }
+                    // Add row for detailed Designation summary table
+                    designationRowsForThisFilter.add(new DesignationFilterResultRow(
+                        candidateName,
+                        designation,
+                        currentDesignation,
+                        found
+                    ));
                     driver.close();
                     driver.switchTo().window(parentHandle);
                     Thread.sleep(500);
@@ -974,6 +1470,13 @@ public class superadmintest extends basePage {
                 + ", Marked = " + markedCandidateNames.size()
                 + ". Matched: " + matchedCandidateNames
                 + ", Marked: " + markedCandidateNames);
+            // Detailed table for this Designation filter value
+            printDesignationFilterSummaryTable(
+                designation,
+                totalCount,
+                designationRowsForThisFilter.size(),
+                designationRowsForThisFilter
+            );
             System.out.println("=".repeat(60) + "\n");
         }
 
@@ -1017,7 +1520,7 @@ public class superadmintest extends basePage {
         }
 
         loginPage loginPage = new loginPage(driver);
-        loginPage.loginAs("test@gmail.com", "Test@123");
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
             if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
@@ -1045,6 +1548,7 @@ public class superadmintest extends basePage {
             Assert.assertTrue(totalCount >= 0, "Result count should be displayed (>= 0) for Experience " + min + "–" + max + " years");
             String parentHandle = driver.getWindowHandle();
             List<String> openedCandidateNames = new ArrayList<>();
+            List<ExperienceFilterResultRow> experienceRowsForThisRange = new ArrayList<>();
 
             sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
                 try {
@@ -1064,6 +1568,7 @@ public class superadmintest extends basePage {
                     openedCandidateNames.add(candidateName);
                     String expText = detailsPage.getExperienceText();
                     Double expYears = detailsPage.getExperienceYears();
+                    boolean inRange = expYears != null && expYears >= min && expYears <= max;
                     if (expYears != null) {
                         Assert.assertTrue(expYears >= min && expYears <= max,
                             "Experience " + expText + " (" + expYears + " y) should be between " + min + " and " + max + " years for " + candidateName);
@@ -1071,6 +1576,15 @@ public class superadmintest extends basePage {
                     } else {
                         System.out.println("[ADVANCE FILTER][EXPERIENCE] Candidate = " + candidateName + " (from Page " + pageNum + ") | Experience text: " + (expText.isEmpty() ? "(not found)" : expText) + " | Filter: " + min + "–" + max + " years");
                     }
+                    // Add row for detailed Experience summary table
+                    experienceRowsForThisRange.add(new ExperienceFilterResultRow(
+                        candidateName,
+                        min,
+                        max,
+                        expText,
+                        expYears,
+                        inRange
+                    ));
                     driver.close();
                     driver.switchTo().window(parentHandle);
                     Thread.sleep(500);
@@ -1081,6 +1595,14 @@ public class superadmintest extends basePage {
             });
 
             System.out.println("[ADVANCE FILTER][EXPERIENCE] REPORT for " + min + "–" + max + " years: Total = " + totalCount + ", Opened = " + openedCandidateNames.size() + ". " + openedCandidateNames);
+            // Detailed table for this Experience range
+            printExperienceFilterSummaryTable(
+                min,
+                max,
+                totalCount,
+                experienceRowsForThisRange.size(),
+                experienceRowsForThisRange
+            );
             System.out.println("=".repeat(60) + "\n");
         }
 
@@ -1089,15 +1611,340 @@ public class superadmintest extends basePage {
         System.out.println("=".repeat(80));
     }
 
-    /**
-     * Test No 8: Add MIXED filters (Company + Location + Designation + Experience + Current CTC + Expected CTC + Notice Period)
-     * and clear in a loop. NO opening of candidates.
-     * Runs until you manually stop the test (Ctrl+F2 in Eclipse or stop button).
-     */
+   
+    @Test
+    @Description("Test No 8: Advanced Filter – Current CTC ranges from Excel, sample 2–3 per page, open profiles, log and assert")
+    public void advancedFilter_FromExcel_AssertAndMarkCandidates_for_CurrentCTC_Filter() throws Exception {
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("TEST NO 8a: Advanced Filter – Current CTC ranges from CTCMaster.xlsx (sample 2–3 per page, open profiles)");
+        System.out.println("=".repeat(80));
+
+        String projectRoot = System.getProperty("user.dir");
+        String ctcMasterPath = Paths.get(projectRoot, "src", "test", "resources", "CTCMaster.xlsx").toString();
+        CTCMasterExcelUtil.createEmptyTemplateIfMissing(ctcMasterPath);
+
+        List<int[]> allRanges = new ArrayList<>();
+        try (InputStream excelIn = getClass().getClassLoader().getResourceAsStream("CTCMaster.xlsx")) {
+            if (excelIn != null) allRanges = CTCMasterExcelUtil.readCTCRanges(excelIn);
+        }
+        if (allRanges.isEmpty() && Files.exists(Paths.get(ctcMasterPath))) {
+            try (InputStream in = Files.newInputStream(Paths.get(ctcMasterPath))) {
+                allRanges = CTCMasterExcelUtil.readCTCRanges(in);
+            }
+        }
+        if (allRanges.isEmpty()) {
+            System.out.println("[ADVANCE FILTER][CURRENT CTC] No valid ranges in CTCMaster. Ensure MinLakhs, MaxLakhs are filled.");
+            return;
+        }
+        List<int[]> ranges = CTCMasterExcelUtil.getRandomCTCRanges(allRanges, 10);
+        System.out.println("[ADVANCE FILTER][CURRENT CTC] Using " + ranges.size() + " range(s) from Excel:");
+        for (int[] r : ranges) System.out.println("  - " + r[0] + " to " + r[1] + " Lakhs");
+
+        loginPage loginPage = new loginPage(driver);
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
+        try {
+            By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
+            if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
+                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(),'Continue Login')]"))).click();
+            }
+        } catch (TimeoutException e) { }
+        Thread.sleep(1500);
+
+        CandidatesPage candidatesPage = new CandidatesPage(driver, wait);
+        candidatesPage.candidatesPage_Link();
+        candidatesPage.openAdvanceSearch();
+        candidatesPage.clickClearFiltersIfPresent();
+
+        for (int[] range : ranges) {
+            int min = range[0];
+            int max = range[1];
+            candidatesPage.clickClearFiltersIfPresent();
+            Thread.sleep(500);
+            candidatesPage.setCurrentCTCFilter(min, max);
+            int totalCount = candidatesPage.getResultCount();
+            System.out.println("\n" + "=".repeat(60));
+            System.out.println("[ADVANCE FILTER][CURRENT CTC] Filter: " + min + " to " + max + " Lakhs | Total results: " + totalCount);
+            System.out.println("=".repeat(60));
+
+            List<String> matchedCandidateNames = new ArrayList<>();
+            List<String> markedCandidateNames = new ArrayList<>();
+            List<CurrentCTCFilterResultRow> currentCTCRowsForThisRange = new ArrayList<>();
+            String parentHandle = driver.getWindowHandle();
+
+            sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
+                try {
+                    candidatesPage.openCandidateProfile(link);
+                    Thread.sleep(1500);
+                    Set<String> handles = driver.getWindowHandles();
+                    for (String h : handles) {
+                        if (!h.equals(parentHandle)) {
+                            driver.switchTo().window(h);
+                            break;
+                        }
+                    }
+                    CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
+                    String candidateName = detailsPage.getCandidateName();
+                    Double ctcLakhs = detailsPage.getCurrentCTCLakhs();
+                    boolean inRange = ctcLakhs != null && ctcLakhs >= min && ctcLakhs <= max;
+                    if (inRange) {
+                        matchedCandidateNames.add(candidateName);
+                        System.out.println("[ADVANCE FILTER][CURRENT CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MATCH | CTC=" + ctcLakhs + "L in [" + min + "-" + max + "]");
+                    } else {
+                        markedCandidateNames.add(candidateName);
+                        System.out.println("[ADVANCE FILTER][CURRENT CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MARKED | CTC=" + (ctcLakhs != null ? ctcLakhs + "L" : "not found") + " | Filter: " + min + "-" + max + "L");
+                    }
+                    // Add row for detailed Current CTC summary table
+                    currentCTCRowsForThisRange.add(new CurrentCTCFilterResultRow(
+                        candidateName,
+                        min,
+                        max,
+                        ctcLakhs,
+                        inRange
+                    ));
+                    driver.close();
+                    driver.switchTo().window(parentHandle);
+                    Thread.sleep(500);
+                } catch (Exception e) {
+                    try { driver.switchTo().window(parentHandle); } catch (Exception e2) { }
+                    System.out.println("[ADVANCE FILTER][CURRENT CTC] Candidate (Page " + pageNum + ") | Error: " + e.getMessage());
+                }
+            });
+
+            System.out.println("[ADVANCE FILTER][CURRENT CTC] REPORT for " + min + "-" + max + "L: Total=" + totalCount + ", Matched=" + matchedCandidateNames.size() + ", Marked=" + markedCandidateNames.size());
+            // Detailed table for this Current CTC range
+            printCurrentCTCFilterSummaryTable(
+                min,
+                max,
+                totalCount,
+                currentCTCRowsForThisRange.size(),
+                currentCTCRowsForThisRange
+            );
+            System.out.println("=".repeat(60) + "\n");
+        }
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("TEST NO 8a SUMMARY: Current CTC filter (from Excel) completed.");
+        System.out.println("=".repeat(80));
+    }
+
+   
+    @Test
+    @Description("Test No 9: Advanced Filter – Expected CTC ranges from Excel, sample 2–3 per page, open profiles, log and assert")
+    public void advancedFilter_FromExcel_AssertAndMarkCandidates_for_ExpectedCTC_Filter() throws Exception {
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("TEST NO 8b: Advanced Filter – Expected CTC ranges from CTCMaster.xlsx (sample 2–3 per page, open profiles)");
+        System.out.println("=".repeat(80));
+
+        String projectRoot = System.getProperty("user.dir");
+        String ctcMasterPath = Paths.get(projectRoot, "src", "test", "resources", "CTCMaster.xlsx").toString();
+        CTCMasterExcelUtil.createEmptyTemplateIfMissing(ctcMasterPath);
+
+        List<int[]> allRanges = new ArrayList<>();
+        try (InputStream excelIn = getClass().getClassLoader().getResourceAsStream("CTCMaster.xlsx")) {
+            if (excelIn != null) allRanges = CTCMasterExcelUtil.readCTCRanges(excelIn);
+        }
+        if (allRanges.isEmpty() && Files.exists(Paths.get(ctcMasterPath))) {
+            try (InputStream in = Files.newInputStream(Paths.get(ctcMasterPath))) {
+                allRanges = CTCMasterExcelUtil.readCTCRanges(in);
+            }
+        }
+        if (allRanges.isEmpty()) {
+            System.out.println("[ADVANCE FILTER][EXPECTED CTC] No valid ranges in CTCMaster. Ensure MinLakhs, MaxLakhs are filled.");
+            return;
+        }
+        List<int[]> ranges = CTCMasterExcelUtil.getRandomCTCRanges(allRanges, 10);
+        System.out.println("[ADVANCE FILTER][EXPECTED CTC] Using " + ranges.size() + " range(s) from Excel:");
+        for (int[] r : ranges) System.out.println("  - " + r[0] + " to " + r[1] + " Lakhs");
+
+        loginPage loginPage = new loginPage(driver);
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
+        try {
+            By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
+            if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
+                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(),'Continue Login')]"))).click();
+            }
+        } catch (TimeoutException e) { }
+        Thread.sleep(1500);
+
+        CandidatesPage candidatesPage = new CandidatesPage(driver, wait);
+        candidatesPage.candidatesPage_Link();
+        candidatesPage.openAdvanceSearch();
+        candidatesPage.clickClearFiltersIfPresent();
+
+        for (int[] range : ranges) {
+            int min = range[0];
+            int max = range[1];
+            candidatesPage.clickClearFiltersIfPresent();
+            Thread.sleep(500);
+            candidatesPage.setExpectedCTCFilter(min, max);
+            int totalCount = candidatesPage.getResultCount();
+            System.out.println("\n" + "=".repeat(60));
+            System.out.println("[ADVANCE FILTER][EXPECTED CTC] Filter: " + min + " to " + max + " Lakhs | Total results: " + totalCount);
+            System.out.println("=".repeat(60));
+
+            List<String> matchedCandidateNames = new ArrayList<>();
+            List<String> markedCandidateNames = new ArrayList<>();
+            List<ExpectedCTCFilterResultRow> expectedCTCRowsForThisRange = new ArrayList<>();
+            String parentHandle = driver.getWindowHandle();
+
+            sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
+                try {
+                    candidatesPage.openCandidateProfile(link);
+                    Thread.sleep(1500);
+                    Set<String> handles = driver.getWindowHandles();
+                    for (String h : handles) {
+                        if (!h.equals(parentHandle)) {
+                            driver.switchTo().window(h);
+                            break;
+                        }
+                    }
+                    CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
+                    String candidateName = detailsPage.getCandidateName();
+                    Double ctcLakhs = detailsPage.getExpectedCTCLakhs();
+                    boolean inRange = ctcLakhs != null && ctcLakhs >= min && ctcLakhs <= max;
+                    if (inRange) {
+                        matchedCandidateNames.add(candidateName);
+                        System.out.println("[ADVANCE FILTER][EXPECTED CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MATCH | ECTC=" + ctcLakhs + "L in [" + min + "-" + max + "]");
+                    } else {
+                        markedCandidateNames.add(candidateName);
+                        System.out.println("[ADVANCE FILTER][EXPECTED CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MARKED | ECTC=" + (ctcLakhs != null ? ctcLakhs + "L" : "not found") + " | Filter: " + min + "-" + max + "L");
+                    }
+                    // Add row for detailed Expected CTC summary table
+                    expectedCTCRowsForThisRange.add(new ExpectedCTCFilterResultRow(
+                        candidateName,
+                        min,
+                        max,
+                        ctcLakhs,
+                        inRange
+                    ));
+                    driver.close();
+                    driver.switchTo().window(parentHandle);
+                    Thread.sleep(500);
+                } catch (Exception e) {
+                    try { driver.switchTo().window(parentHandle); } catch (Exception e2) { }
+                    System.out.println("[ADVANCE FILTER][EXPECTED CTC] Candidate (Page " + pageNum + ") | Error: " + e.getMessage());
+                }
+            });
+
+            System.out.println("[ADVANCE FILTER][EXPECTED CTC] REPORT for " + min + "-" + max + "L: Total=" + totalCount + ", Matched=" + matchedCandidateNames.size() + ", Marked=" + markedCandidateNames.size());
+            // Detailed table for this Expected CTC range
+            printExpectedCTCFilterSummaryTable(
+                min,
+                max,
+                totalCount,
+                expectedCTCRowsForThisRange.size(),
+                expectedCTCRowsForThisRange
+            );
+            System.out.println("=".repeat(60) + "\n");
+        }
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("TEST NO 8b SUMMARY: Expected CTC filter (from Excel) completed.");
+        System.out.println("=".repeat(80));
+    }
+
+
+    
+
+
+
     private static final int FILTER_LOOP_MAX_ITERATIONS = 1000;
+    private static final int NOTICE_PERIOD_SAMPLES_PER_PAGE = 4;
+    private static final List<String> NOTICE_PERIOD_OPTIONS = Arrays.asList("Immediate Joiner", "0 - 15 days", "1 month", "2 months", "3 months");
 
     @Test
-    @Description("Test No 8: Mixed filters (all up to Notice Period) add + clear loop (no candidate opening); stop manually when done")
+    @Description("Notice Period filter only: select value, open all pages (25 per page), 4 random candidates per page, log candidate names from details page")
+    public void noticePeriodFilter_OpenAllPages_FourPerPage_LogCandidateNames() throws Exception {
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("NOTICE PERIOD FILTER: Open all pages, 4 candidates per page, log names from details");
+        System.out.println("=".repeat(80));
+
+        loginPage loginPage = new loginPage(driver);
+        loginPage.loginAs("admin10@gmail.com", "Admin@123");
+        try {
+            By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
+            if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
+                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(),'Continue Login')]"))).click();
+            }
+        } catch (TimeoutException e) { }
+        Thread.sleep(1500);
+
+        CandidatesPage candidatesPage = new CandidatesPage(driver, wait);
+        candidatesPage.candidatesPage_Link();
+        candidatesPage.openAdvanceSearch();
+        candidatesPage.clickClearFiltersIfPresent();
+
+        for (String noticePeriodValue : NOTICE_PERIOD_OPTIONS) {
+            candidatesPage.clickClearFiltersIfPresent();
+            Thread.sleep(500);
+
+            candidatesPage.setNoticePeriodFilter(noticePeriodValue);
+            int totalCount = candidatesPage.getResultCount();
+
+            System.out.println("\n" + "=".repeat(60));
+            System.out.println("[NOTICE PERIOD] Filter: " + noticePeriodValue + " | Total results: " + totalCount);
+            if (totalCount > PAGE_SIZE) {
+                int totalPages = (int) Math.ceil((double) totalCount / PAGE_SIZE);
+                System.out.println("[NOTICE PERIOD] Pages: " + totalPages + " (25 per page). Will open 4 candidates per page.");
+            }
+            System.out.println("=".repeat(60));
+
+            if (totalCount <= 0) {
+                System.out.println("[NOTICE PERIOD] No results for '" + noticePeriodValue + "'. Skipping.");
+                continue;
+            }
+
+            String parentHandle = driver.getWindowHandle();
+            List<String> loggedCandidateNames = new ArrayList<>();
+            final String filterApplied = noticePeriodValue;
+
+            sampleCandidatesForFilterFixedPerPage(candidatesPage, totalCount, parentHandle, NOTICE_PERIOD_SAMPLES_PER_PAGE, (link, pageNum) -> {
+                try {
+                    candidatesPage.openCandidateProfile(link);
+                    Thread.sleep(1500);
+                    Set<String> handles = driver.getWindowHandles();
+                    for (String h : handles) {
+                        if (!h.equals(parentHandle)) {
+                            driver.switchTo().window(h);
+                            break;
+                        }
+                    }
+                    CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
+                    String candidateName = detailsPage.getCandidateName();
+                    String valueFoundOnDetails = detailsPage.getNoticePeriod();
+                    boolean hasValue = valueFoundOnDetails != null && !valueFoundOnDetails.isEmpty();
+                    boolean matches = hasValue ? noticePeriodMatchesFilter(filterApplied, valueFoundOnDetails) : false;
+
+                    loggedCandidateNames.add(candidateName);
+                    System.out.println("[NOTICE PERIOD] ---");
+                    System.out.println("[NOTICE PERIOD] Filter applied: " + filterApplied);
+                    System.out.println("[NOTICE PERIOD] Page number (sampling from): " + pageNum);
+                    System.out.println("[NOTICE PERIOD] Candidate name (from details): " + candidateName);
+                    System.out.println("[NOTICE PERIOD] Value found on candidate details page: " + (hasValue ? valueFoundOnDetails : "(not found)"));
+                    System.out.println("[NOTICE PERIOD] Assert: value within/applies to filter? " + (hasValue ? (matches ? "PASS" : "FAIL") : "SKIP (not found on page)"));
+                    if (hasValue) {
+                        Assert.assertTrue(matches, "Notice period on details page [" + valueFoundOnDetails + "] should match applied filter [" + filterApplied + "]");
+                    }
+
+                    driver.close();
+                    driver.switchTo().window(parentHandle);
+                    Thread.sleep(500);
+                } catch (Exception e) {
+                    try { driver.switchTo().window(parentHandle); } catch (Exception e2) { }
+                    System.out.println("[NOTICE PERIOD] Page " + pageNum + " | Error: " + e.getMessage());
+                }
+            });
+
+            System.out.println("[NOTICE PERIOD] REPORT for '" + noticePeriodValue + "': Total results=" + totalCount + ", Opened & logged=" + loggedCandidateNames.size());
+            System.out.println("[NOTICE PERIOD] Logged candidate names: " + loggedCandidateNames);
+            System.out.println("=".repeat(60) + "\n");
+        }
+
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("NOTICE PERIOD FILTER TEST SUMMARY: Completed for all notice period options.");
+        System.out.println("=".repeat(80));
+    }
+
+    @Test
+    @Description("Test No 10: Mixed filters (all up to Notice Period) add + clear loop (no candidate opening); stop manually when done")
     public void filterAddAndClearLoop_NoCandidateOpening() throws Exception {
         System.out.println("\n" + "=".repeat(80));
         System.out.println("TEST NO 8: MIXED filter (Company + Location + Designation + Experience + Current CTC + Expected CTC + Notice Period) add + clear loop.");
@@ -1118,7 +1965,7 @@ public class superadmintest extends basePage {
         List<String> noticePeriodOptions = Arrays.asList("Immediate Joiner", "0 - 15 days", "1 month", "2 months", "3 months");
 
         loginPage loginPage = new loginPage(driver);
-        // loginPage.loginAs("test@gmail.com", "Test@123");
+        // loginPage.loginAs("admin10@gmail.com", "Admin@123");
         loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
@@ -1197,211 +2044,7 @@ public class superadmintest extends basePage {
         System.out.println("=".repeat(80));
     }
 
-    /**
-     * Test No 8a: Current CTC filter – ranges from CTCMaster.xlsx.
-     * For each range: apply filter → get result count → open 2–3 profiles per page across all pages → log/assert CTC in range.
-     */
-    @Test
-    @Description("Test No 9: Advanced Filter – Current CTC ranges from Excel, sample 2–3 per page, open profiles, log and assert")
-    public void advancedFilter_FromExcel_AssertAndMarkCandidates_for_CurrentCTC_Filter() throws Exception {
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("TEST NO 8a: Advanced Filter – Current CTC ranges from CTCMaster.xlsx (sample 2–3 per page, open profiles)");
-        System.out.println("=".repeat(80));
-
-        String projectRoot = System.getProperty("user.dir");
-        String ctcMasterPath = Paths.get(projectRoot, "src", "test", "resources", "CTCMaster.xlsx").toString();
-        CTCMasterExcelUtil.createEmptyTemplateIfMissing(ctcMasterPath);
-
-        List<int[]> allRanges = new ArrayList<>();
-        try (InputStream excelIn = getClass().getClassLoader().getResourceAsStream("CTCMaster.xlsx")) {
-            if (excelIn != null) allRanges = CTCMasterExcelUtil.readCTCRanges(excelIn);
-        }
-        if (allRanges.isEmpty() && Files.exists(Paths.get(ctcMasterPath))) {
-            try (InputStream in = Files.newInputStream(Paths.get(ctcMasterPath))) {
-                allRanges = CTCMasterExcelUtil.readCTCRanges(in);
-            }
-        }
-        if (allRanges.isEmpty()) {
-            System.out.println("[ADVANCE FILTER][CURRENT CTC] No valid ranges in CTCMaster. Ensure MinLakhs, MaxLakhs are filled.");
-            return;
-        }
-        List<int[]> ranges = CTCMasterExcelUtil.getRandomCTCRanges(allRanges, 10);
-        System.out.println("[ADVANCE FILTER][CURRENT CTC] Using " + ranges.size() + " range(s) from Excel:");
-        for (int[] r : ranges) System.out.println("  - " + r[0] + " to " + r[1] + " Lakhs");
-
-        loginPage loginPage = new loginPage(driver);
-        loginPage.loginAs("test@gmail.com", "Test@123");
-        try {
-            By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
-            if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
-                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(),'Continue Login')]"))).click();
-            }
-        } catch (TimeoutException e) { }
-        Thread.sleep(1500);
-
-        CandidatesPage candidatesPage = new CandidatesPage(driver, wait);
-        candidatesPage.candidatesPage_Link();
-        candidatesPage.openAdvanceSearch();
-        candidatesPage.clickClearFiltersIfPresent();
-
-        for (int[] range : ranges) {
-            int min = range[0];
-            int max = range[1];
-            candidatesPage.clickClearFiltersIfPresent();
-            Thread.sleep(500);
-            candidatesPage.setCurrentCTCFilter(min, max);
-            int totalCount = candidatesPage.getResultCount();
-            System.out.println("\n" + "=".repeat(60));
-            System.out.println("[ADVANCE FILTER][CURRENT CTC] Filter: " + min + " to " + max + " Lakhs | Total results: " + totalCount);
-            System.out.println("=".repeat(60));
-
-            List<String> matchedCandidateNames = new ArrayList<>();
-            List<String> markedCandidateNames = new ArrayList<>();
-            String parentHandle = driver.getWindowHandle();
-
-            sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
-                try {
-                    candidatesPage.openCandidateProfile(link);
-                    Thread.sleep(1500);
-                    Set<String> handles = driver.getWindowHandles();
-                    for (String h : handles) {
-                        if (!h.equals(parentHandle)) {
-                            driver.switchTo().window(h);
-                            break;
-                        }
-                    }
-                    CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
-                    String candidateName = detailsPage.getCandidateName();
-                    Double ctcLakhs = detailsPage.getCurrentCTCLakhs();
-                    if (ctcLakhs != null && ctcLakhs >= min && ctcLakhs <= max) {
-                        matchedCandidateNames.add(candidateName);
-                        System.out.println("[ADVANCE FILTER][CURRENT CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MATCH | CTC=" + ctcLakhs + "L in [" + min + "-" + max + "]");
-                    } else {
-                        markedCandidateNames.add(candidateName);
-                        System.out.println("[ADVANCE FILTER][CURRENT CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MARKED | CTC=" + (ctcLakhs != null ? ctcLakhs + "L" : "not found") + " | Filter: " + min + "-" + max + "L");
-                    }
-                    driver.close();
-                    driver.switchTo().window(parentHandle);
-                    Thread.sleep(500);
-                } catch (Exception e) {
-                    try { driver.switchTo().window(parentHandle); } catch (Exception e2) { }
-                    System.out.println("[ADVANCE FILTER][CURRENT CTC] Candidate (Page " + pageNum + ") | Error: " + e.getMessage());
-                }
-            });
-
-            System.out.println("[ADVANCE FILTER][CURRENT CTC] REPORT for " + min + "-" + max + "L: Total=" + totalCount + ", Matched=" + matchedCandidateNames.size() + ", Marked=" + markedCandidateNames.size());
-            System.out.println("=".repeat(60) + "\n");
-        }
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("TEST NO 8a SUMMARY: Current CTC filter (from Excel) completed.");
-        System.out.println("=".repeat(80));
-    }
-
-    /**
-     * Test No 8b: Expected CTC filter – ranges from CTCMaster.xlsx.
-     * For each range: apply filter → get result count → open 2–3 profiles per page across all pages → log/assert ECTC in range.
-     */
-    @Test
-    @Description("Test No 10: Advanced Filter – Expected CTC ranges from Excel, sample 2–3 per page, open profiles, log and assert")
-    public void advancedFilter_FromExcel_AssertAndMarkCandidates_for_ExpectedCTC_Filter() throws Exception {
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("TEST NO 8b: Advanced Filter – Expected CTC ranges from CTCMaster.xlsx (sample 2–3 per page, open profiles)");
-        System.out.println("=".repeat(80));
-
-        String projectRoot = System.getProperty("user.dir");
-        String ctcMasterPath = Paths.get(projectRoot, "src", "test", "resources", "CTCMaster.xlsx").toString();
-        CTCMasterExcelUtil.createEmptyTemplateIfMissing(ctcMasterPath);
-
-        List<int[]> allRanges = new ArrayList<>();
-        try (InputStream excelIn = getClass().getClassLoader().getResourceAsStream("CTCMaster.xlsx")) {
-            if (excelIn != null) allRanges = CTCMasterExcelUtil.readCTCRanges(excelIn);
-        }
-        if (allRanges.isEmpty() && Files.exists(Paths.get(ctcMasterPath))) {
-            try (InputStream in = Files.newInputStream(Paths.get(ctcMasterPath))) {
-                allRanges = CTCMasterExcelUtil.readCTCRanges(in);
-            }
-        }
-        if (allRanges.isEmpty()) {
-            System.out.println("[ADVANCE FILTER][EXPECTED CTC] No valid ranges in CTCMaster. Ensure MinLakhs, MaxLakhs are filled.");
-            return;
-        }
-        List<int[]> ranges = CTCMasterExcelUtil.getRandomCTCRanges(allRanges, 10);
-        System.out.println("[ADVANCE FILTER][EXPECTED CTC] Using " + ranges.size() + " range(s) from Excel:");
-        for (int[] r : ranges) System.out.println("  - " + r[0] + " to " + r[1] + " Lakhs");
-
-        loginPage loginPage = new loginPage(driver);
-        loginPage.loginAs("test@gmail.com", "Test@123");
-        try {
-            By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
-            if (wait.until(ExpectedConditions.presenceOfElementLocated(conflictMsg)).isDisplayed()) {
-                wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(),'Continue Login')]"))).click();
-            }
-        } catch (TimeoutException e) { }
-        Thread.sleep(1500);
-
-        CandidatesPage candidatesPage = new CandidatesPage(driver, wait);
-        candidatesPage.candidatesPage_Link();
-        candidatesPage.openAdvanceSearch();
-        candidatesPage.clickClearFiltersIfPresent();
-
-        for (int[] range : ranges) {
-            int min = range[0];
-            int max = range[1];
-            candidatesPage.clickClearFiltersIfPresent();
-            Thread.sleep(500);
-            candidatesPage.setExpectedCTCFilter(min, max);
-            int totalCount = candidatesPage.getResultCount();
-            System.out.println("\n" + "=".repeat(60));
-            System.out.println("[ADVANCE FILTER][EXPECTED CTC] Filter: " + min + " to " + max + " Lakhs | Total results: " + totalCount);
-            System.out.println("=".repeat(60));
-
-            List<String> matchedCandidateNames = new ArrayList<>();
-            List<String> markedCandidateNames = new ArrayList<>();
-            String parentHandle = driver.getWindowHandle();
-
-            sampleCandidatesForFilter(candidatesPage, totalCount, parentHandle, (link, pageNum) -> {
-                try {
-                    candidatesPage.openCandidateProfile(link);
-                    Thread.sleep(1500);
-                    Set<String> handles = driver.getWindowHandles();
-                    for (String h : handles) {
-                        if (!h.equals(parentHandle)) {
-                            driver.switchTo().window(h);
-                            break;
-                        }
-                    }
-                    CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
-                    String candidateName = detailsPage.getCandidateName();
-                    Double ctcLakhs = detailsPage.getExpectedCTCLakhs();
-                    if (ctcLakhs != null && ctcLakhs >= min && ctcLakhs <= max) {
-                        matchedCandidateNames.add(candidateName);
-                        System.out.println("[ADVANCE FILTER][EXPECTED CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MATCH | ECTC=" + ctcLakhs + "L in [" + min + "-" + max + "]");
-                    } else {
-                        markedCandidateNames.add(candidateName);
-                        System.out.println("[ADVANCE FILTER][EXPECTED CTC] Candidate = " + candidateName + " (Page " + pageNum + ") | MARKED | ECTC=" + (ctcLakhs != null ? ctcLakhs + "L" : "not found") + " | Filter: " + min + "-" + max + "L");
-                    }
-                    driver.close();
-                    driver.switchTo().window(parentHandle);
-                    Thread.sleep(500);
-                } catch (Exception e) {
-                    try { driver.switchTo().window(parentHandle); } catch (Exception e2) { }
-                    System.out.println("[ADVANCE FILTER][EXPECTED CTC] Candidate (Page " + pageNum + ") | Error: " + e.getMessage());
-                }
-            });
-
-            System.out.println("[ADVANCE FILTER][EXPECTED CTC] REPORT for " + min + "-" + max + "L: Total=" + totalCount + ", Matched=" + matchedCandidateNames.size() + ", Marked=" + markedCandidateNames.size());
-            System.out.println("=".repeat(60) + "\n");
-        }
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("TEST NO 8b SUMMARY: Expected CTC filter (from Excel) completed.");
-        System.out.println("=".repeat(80));
-    }
-
-    /**
-     * Test No 9: Variable filter combinations from Excel – 2, 3, or 4 filter types.
-     * Sometimes 1 company, sometimes 2 companies; sometimes 1 designation, sometimes 2 designations.
-     * Location, Experience – 1 each when included. Data from CompanyMaster, DesignationMaster, LocationMaster, ExperienceMaster.
-     */
+   
     @Test
     @Description("Test No 11: Variable filter combinations from Excel – 2–4 filter types, sometimes 2 companies or 2 designations")
     public void advancedFilter_FromExcel_VariableFilterCombinations() throws Exception {
@@ -1434,7 +2077,7 @@ public class superadmintest extends basePage {
         }
 
         loginPage loginPage = new loginPage(driver);
-        // loginPage.loginAs("test@gmail.com", "Test@123");
+        // loginPage.loginAs("admin10@gmail.com", "Admin@123");
         loginPage.loginAs("admin10@gmail.com", "Admin@123");
         try {
             By conflictMsg = By.xpath("//div[contains(text(),'You have logged in on another device')]");
