@@ -17,7 +17,7 @@ import java.util.List;
  * Template path: src/test/resources/CTCMaster.xlsx
  * Columns: MinLakhs, MaxLakhs
  */
-public class CTCMasterExcelUtil {
+public class ctc_filter_Util {
 
     public static final String CTC_MASTER_SHEET = "CTCRanges";
     public static final String COL_MIN_LAKHS = "MinLakhs";

@@ -14,7 +14,7 @@ import java.util.*;
  * Manages the Location master Excel: creates it from location_names.txt if missing,
  * reads all location names, and builds random Location filter rows with different modes.
  */
-public class LocationMasterExcelUtil {
+public class location_filter_Util {
 
     public static final String LOCATION_MASTER_SHEET = "Locations";
     public static final String COL_LOCATION_NAME = "LocationName";

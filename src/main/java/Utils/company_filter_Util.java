@@ -14,7 +14,7 @@ import java.util.*;
  * Manages the company master Excel: creates it from company_names.txt if missing,
  * reads all company names, and builds random Company filter rows (Past / Current / Current + Past).
  */
-public class CompanyMasterExcelUtil {
+public class company_filter_Util {
 
     public static final String COMPANY_MASTER_SHEET = "Companies";
     public static final String COL_COMPANY_NAME = "CompanyName";

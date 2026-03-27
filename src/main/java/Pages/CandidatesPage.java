@@ -55,9 +55,13 @@ public class CandidatesPage {
     private final By locationTabLabelForScroll = By.xpath("(//span[text()='Location'])[3]");
     private final By locationModeTrigger = By.xpath("//span[@class='capitalize']");
 
-    // New UI: Designation section (split view)
+    // New UI: Designation, Department, Role & Industry section (split view)
     private final By designationSectionButton = By.xpath("//button[text()='Designation']");
     private final By designationTabLabelForScroll = By.xpath("(//span[text()='Designation'])[3]");
+    private final By departmentSectionButton = By.xpath("//button[contains(text(),'Department') or contains(.,'Department')]");
+    private final By roleSectionButton = By.xpath("//button[contains(text(),'Role') or contains(.,'Role')]");
+    private final By industrySectionButton = By.xpath("//button[contains(text(),'Industry') or contains(.,'Industry')]");
+    private final By employmentStatusSectionButton = By.xpath("//button[contains(text(),'Employment Status') or contains(.,'Employment Status') or contains(text(),'Employment type') or contains(.,'Employment type')]");
 
     // New UI: Experience section (split view)
     private final By experienceTabLabelForScroll = By.xpath("//span[text()='Experience']");
@@ -74,6 +78,12 @@ public class CandidatesPage {
     private final By ageSectionButton = By.xpath("//button[contains(text(),'Age') or contains(.,'Age')]");
     private final By physicallyChallengedSectionButton = By.xpath("//button[contains(text(),'Physically Challenged') or contains(.,'Physically Challenged') or contains(text(),'Physically')]");
     private final By categorySectionButton = By.xpath("//button[contains(text(),'Category') or contains(.,'Category')]");
+
+    // Contact Details section filters
+    private final By contactSectionButton = By.xpath("//button[contains(text(),'Contact Details') or contains(.,'Contact')]");
+
+    // Socials section filters
+    private final By socialsSectionButton = By.xpath("//button[contains(text(),'Socials') or contains(.,'Social')]");
 
     public CandidatesPage(WebDriver driver, WebDriverWait wait) {
         this.driver = driver;
@@ -547,7 +557,94 @@ public class CandidatesPage {
         setPersonalDetailsDropdownFilter(categorySectionButton, option, "Category");
     }
 
-    /** Opens a Personal Details section, selects the option by visible text, then applies filter. */
+    /**
+     * Professional Details – Department filter. Examples: Engineering, Sales, Marketing.
+     */
+    @Step("Set Department filter: {option}")
+    public void setDepartmentFilter(String option) {
+        setPersonalDetailsDropdownFilter(departmentSectionButton, option, "Department");
+    }
+
+    /**
+     * Professional Details – Role filter. Examples: Software Engineer, Team Lead.
+     */
+    @Step("Set Role filter: {option}")
+    public void setRoleFilter(String option) {
+        setPersonalDetailsDropdownFilter(roleSectionButton, option, "Role");
+    }
+
+    /**
+     * Professional Details – Industry filter. Examples: IT, Banking, Healthcare.
+     */
+    @Step("Set Industry filter: {option}")
+    public void setIndustryFilter(String option) {
+        setPersonalDetailsDropdownFilter(industrySectionButton, option, "Industry");
+    }
+
+    /**
+     * Socials – filter by linked social profile: LinkedIn, Github, WhatsApp, Dribbble.
+     * UI is a dropdown with checkboxes, but we select a single option from Excel at a time.
+     */
+    @Step("Set Socials filter: {option}")
+    public void setSocialsFilter(String option) {
+        if (option == null || option.trim().isEmpty()) return;
+        String optText = option.trim();
+        try {
+            // Open Socials section
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(socialsSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(socialsSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+
+            // Click "Select socials..." dropdown trigger inside the section
+            try {
+                By selectSocialsTrigger = By.xpath("//span[text()='Select socials...']/ancestor::button | //span[text()='Select socials...']");
+                WebElement trigger = wait.until(ExpectedConditions.elementToBeClickable(selectSocialsTrigger));
+                ScrollHelper.scrollIntoView(driver, trigger);
+                trigger.click();
+                Thread.sleep(400);
+            } catch (Exception e) {
+                System.out.println("[CANDIDATES] Select socials dropdown trigger not found/clickable: " + e.getMessage());
+            }
+
+            // Now choose the specific social option from the opened dropdown
+            try {
+                String safe = optText.replace("'", "''");
+                By optionLocator = By.xpath(
+                    "//*[@role='listbox']//*[contains(normalize-space(.), '" + safe + "')] | " +
+                    "//*[@role='option'][contains(normalize-space(.), '" + safe + "')] | " +
+                    "//li[contains(normalize-space(.), '" + safe + "')] | " +
+                    "//div[contains(@class,'menu')]//*[contains(normalize-space(.), '" + safe + "')] | " +
+                    "//button[contains(normalize-space(.), '" + safe + "')] | " +
+                    "//span[contains(normalize-space(.), '" + safe + "')]/ancestor::button | " +
+                    "//*[normalize-space(text())='" + safe + "']"
+                );
+                WebElement opt = wait.until(ExpectedConditions.elementToBeClickable(optionLocator));
+                ScrollHelper.scrollIntoView(driver, opt);
+                opt.click();
+                Thread.sleep(400);
+            } catch (Exception e) {
+                System.out.println("[CANDIDATES] Socials dropdown/option '" + optText + "': " + e.getMessage());
+            }
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Socials section open failed: " + e.getMessage());
+            return;
+        }
+        applyFilter();
+    }
+
+    /**
+     * Professional Details – Employment Status filter. Options: Contractual, Freelancer, Full time, Part time, Internship.
+     */
+    @Step("Set Employment Status filter: {option}")
+    public void setEmploymentStatusFilter(String option) {
+        setPersonalDetailsDropdownFilter(employmentStatusSectionButton, option, "Employment Status");
+    }
+
+    /** Opens a Personal / Professional / Socials section, selects the option by visible text, then applies filter. */
     private void setPersonalDetailsDropdownFilter(By sectionButton, String option, String sectionName) {
         if (option == null || option.trim().isEmpty()) return;
         try {
@@ -558,9 +655,25 @@ public class CandidatesPage {
             ScrollHelper.scrollIntoViewAtTop(driver, btn);
             btn.click();
             Thread.sleep(500);
+            // For sections like Socials, scroll a bit further so all dropdown options are visible
+            if ("Socials".equalsIgnoreCase(sectionName)) {
+                try {
+                    org.openqa.selenium.JavascriptExecutor js = (org.openqa.selenium.JavascriptExecutor) driver;
+                    js.executeScript("window.scrollBy(0, 200);");
+                    Thread.sleep(300);
+                } catch (Exception ignored) { }
+            }
         } catch (Exception e) {
             System.out.println("[CANDIDATES] " + sectionName + " section button not found: " + e.getMessage());
             return;
+        }
+        // For Socials, scroll the section back into view after opening the dropdown so all options are visible
+        if ("Socials".equalsIgnoreCase(sectionName)) {
+            try {
+                WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(sectionButton));
+                ScrollHelper.scrollIntoView(driver, btn);
+                Thread.sleep(300);
+            } catch (Exception ignored) { }
         }
         try {
             String optText = option.trim();
@@ -579,6 +692,83 @@ public class CandidatesPage {
             Thread.sleep(500);
         } catch (Exception e) {
             System.out.println("[CANDIDATES] " + sectionName + " dropdown/option '" + option + "': " + e.getMessage());
+        }
+        applyFilter();
+    }
+
+    private void openContactSection() {
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(contactSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(contactSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Contact Details section button not found: " + e.getMessage());
+        }
+    }
+
+    @Step("Set Contact Full Name filter: {fullName}")
+    public void applyContactFullNameFilter(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) return;
+        openContactSection();
+        try {
+            By inputBy = By.xpath(
+                "//label[contains(normalize-space(.),'Full Name') or contains(normalize-space(.),'Name')]/following-sibling::input" +
+                " | //input[@placeholder='Full Name' or contains(@placeholder,'Full name') or contains(@placeholder,'Name')]"
+            );
+            WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(inputBy));
+            ScrollHelper.scrollIntoView(driver, input);
+            input.clear();
+            input.sendKeys(fullName.trim());
+            Thread.sleep(600);
+            input.sendKeys(Keys.ENTER);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Contact Full Name search input: " + e.getMessage());
+        }
+        applyFilter();
+    }
+
+    @Step("Set Contact Email filter: {email}")
+    public void applyContactEmailFilter(String email) {
+        if (email == null || email.trim().isEmpty()) return;
+        openContactSection();
+        try {
+            By inputBy = By.xpath(
+                "//label[contains(normalize-space(.),'Email') or contains(normalize-space(.),'E-mail')]/following-sibling::input" +
+                " | //input[@type='email' or @placeholder='Email' or contains(@placeholder,'email')]"
+            );
+            WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(inputBy));
+            ScrollHelper.scrollIntoView(driver, input);
+            input.clear();
+            input.sendKeys(email.trim());
+            Thread.sleep(600);
+            input.sendKeys(Keys.ENTER);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Contact Email search input: " + e.getMessage());
+        }
+        applyFilter();
+    }
+
+    @Step("Set Contact Mobile filter: {mobile}")
+    public void applyContactMobileFilter(String mobile) {
+        if (mobile == null || mobile.trim().isEmpty()) return;
+        openContactSection();
+        try {
+            By inputBy = By.xpath(
+                "//label[contains(normalize-space(.),'Mobile') or contains(normalize-space(.),'Phone') or contains(normalize-space(.),'Contact')]/following-sibling::input" +
+                " | //input[@type='tel' or @placeholder='Mobile' or contains(@placeholder,'Phone') or contains(@placeholder,'Contact')]"
+            );
+            WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(inputBy));
+            ScrollHelper.scrollIntoView(driver, input);
+            input.clear();
+            input.sendKeys(mobile.trim());
+            Thread.sleep(600);
+            input.sendKeys(Keys.ENTER);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Contact Mobile search input: " + e.getMessage());
         }
         applyFilter();
     }
@@ -644,6 +834,58 @@ public class CandidatesPage {
     public List<WebElement> getCandidateNameLinksOnCurrentPage() {
         waitForLoaderGone();
         return driver.findElements(candidateNameLinks);
+    }
+
+    /**
+     * Get the table row (tr or role=row) that contains the given name link.
+     * Used to find LinkedIn/WhatsApp etc. links in the same row on the candidates list.
+     */
+    public WebElement getRowFromNameLink(WebElement nameLink) {
+        try {
+            return nameLink.findElement(By.xpath("./ancestor::tr"));
+        } catch (Exception e) {
+            try {
+                return nameLink.findElement(By.xpath("./ancestor::*[@role='row']"));
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Get the social profile URL from a candidate row for the given social type.
+     * socialType: "LinkedIn", "WhatsApp", "Github", "Dribbble".
+     * Returns href of the first matching link in the row, or empty string if not present.
+     */
+    public String getSocialUrlInRow(WebElement row, String socialType) {
+        if (row == null || socialType == null) return "";
+        String lower = socialType.trim().toLowerCase();
+        By linkBy = null;
+        if (lower.contains("linkedin")) {
+            linkBy = By.xpath(".//a[contains(@href,'linkedin')]");
+        } else if (lower.contains("whatsapp") || lower.contains("whats")) {
+            linkBy = By.xpath(".//a[contains(@href,'wa.me') or contains(@href,'whatsapp')]");
+        } else if (lower.contains("github")) {
+            linkBy = By.xpath(".//a[contains(@href,'github')]");
+        } else if (lower.contains("dribbble") || lower.contains("dribble")) {
+            linkBy = By.xpath(".//a[contains(@href,'dribbble')]");
+        }
+        if (linkBy == null) return "";
+        try {
+            List<WebElement> links = row.findElements(linkBy);
+            if (!links.isEmpty()) {
+                String href = links.get(0).getAttribute("href");
+                return href != null ? href : "";
+            }
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    /**
+     * Check if the given social type link is present in the candidate row (on list page).
+     */
+    public boolean hasSocialInRow(WebElement row, String socialType) {
+        return !getSocialUrlInRow(row, socialType).isEmpty();
     }
 
     /** Scroll to bottom so the pagination combobox (page numbers) becomes visible. The locator appears only when you scroll till the last of the page. */

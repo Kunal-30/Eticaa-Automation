@@ -19,7 +19,7 @@ import java.util.List;
  * Template path: src/test/resources/ExperienceMaster.xlsx
  * Columns: MinYears, MaxYears
  */
-public class ExperienceMasterExcelUtil {
+public class experience_filter_Util {
 
     public static final String EXPERIENCE_MASTER_SHEET = "ExperienceRanges";
     public static final String COL_MIN_YEARS = "MinYears";

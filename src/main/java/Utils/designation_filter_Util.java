@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Manages the Designation master Excel: reads all designation names
@@ -19,11 +18,10 @@ import java.util.Random;
  *
  * Template path: src/test/resources/DesignationMaster.xlsx
  */
-public class DesignationMasterExcelUtil {
+public class designation_filter_Util {
 
     public static final String DESIGNATION_MASTER_SHEET = "Designations";
     public static final String COL_DESIGNATION_NAME = "DesignationName";
-    private static final Random RANDOM = new Random();
 
     /**
      * Ensure the master Excel exists; if it doesn't, create an empty template

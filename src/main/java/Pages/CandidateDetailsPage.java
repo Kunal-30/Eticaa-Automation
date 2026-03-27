@@ -245,6 +245,70 @@ public class CandidateDetailsPage {
         return getValueAfterLabel("Category:", "Category");
     }
 
+    /** Gets Email from Contact Details section. */
+    public String getEmail() {
+        return getValueAfterLabel("Email:", "E-mail", "Email ID:", "Email Id:");
+    }
+
+    /** Gets Mobile from Contact Details section. */
+    public String getMobile() {
+        return getValueAfterLabel("Mobile:", "Mobile No:", "Mobile Number:", "Phone:", "Contact:");
+    }
+
+    /** Gets Department from Professional / Work section. */
+    public String getDepartment() {
+        return getValueAfterLabel("Department:", "Department");
+    }
+
+    /** Gets Role from Work Summary / Professional section. */
+    public String getRole() {
+        String role = getRoleFromWorkSummary();
+        return role != null ? role.trim() : "";
+    }
+
+    /** Gets Industry from Professional / Work section. */
+    public String getIndustry() {
+        return getValueAfterLabel("Industry:", "Industry");
+    }
+
+    /** Gets Employment Status from Professional / Work section. */
+    public String getEmploymentStatus() {
+        return getValueAfterLabel("Employment Status:", "Employment Status", "Employment Type:", "Employment type");
+    }
+
+    /**
+     * Checks if a given social profile (LinkedIn, Github, WhatsApp, Dribbble) is present on the details page.
+     * Detection is based on href domains and common text labels.
+     */
+    public boolean hasSocial(String socialType) {
+        if (socialType == null || socialType.trim().isEmpty()) return false;
+        String type = socialType.trim().toLowerCase();
+        try {
+            String bodyText = driver.findElement(By.tagName("body")).getText();
+            String bt = bodyText == null ? "" : bodyText.toLowerCase();
+
+            if (type.contains("linkedin")) {
+                if (bt.contains("linkedin")) return true;
+                return !driver.findElements(By.xpath("//a[contains(@href,'linkedin.com')]")).isEmpty();
+            }
+            if (type.contains("github")) {
+                if (bt.contains("github")) return true;
+                return !driver.findElements(By.xpath("//a[contains(@href,'github.com')]")).isEmpty();
+            }
+            if (type.contains("whats")) { // WhatsApp
+                if (bt.contains("whatsapp")) return true;
+                return !driver.findElements(By.xpath("//a[contains(@href,'wa.me') or contains(@href,'whatsapp')]")).isEmpty();
+            }
+            if (type.contains("dribb")) { // Dribbble
+                if (bt.contains("dribbble")) return true;
+                return !driver.findElements(By.xpath("//a[contains(@href,'dribbble.com')]")).isEmpty();
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private String getValueAfterLabel(String... labels) {
         try {
             String bodyText = driver.findElement(By.tagName("body")).getText();
