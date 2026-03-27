@@ -255,25 +255,95 @@ public class CandidateDetailsPage {
         return getValueAfterLabel("Mobile:", "Mobile No:", "Mobile Number:", "Phone:", "Contact:");
     }
 
-    /** Gets Department from Professional / Work section. */
+    /** Gets Department from Professional / Work section. Scrolls to the Department row before reading value. */
     public String getDepartment() {
+        try {
+            By deptRow = By.xpath("//div[contains(@class,'flex') and contains(@class,'items-center') and .//span[normalize-space()='Department']]");
+            WebElement row = wait.until(ExpectedConditions.visibilityOfElementLocated(deptRow));
+            ScrollHelper.scrollIntoStrictCenter(driver, row);
+            // Prefer the value span (usually font-medium) inside the row
+            List<WebElement> valueSpans = row.findElements(By.xpath(".//span[contains(@class,'font-medium')]"));
+            if (!valueSpans.isEmpty()) {
+                String t = valueSpans.get(0).getText();
+                if (t != null && !t.trim().isEmpty()) {
+                    return t.trim();
+                }
+            }
+            // Fallback: raw row text with label removed
+            String full = row.getText();
+            if (full != null && !full.isEmpty()) {
+                return full.replace("Department", "").replace("Department:", "").trim();
+            }
+        } catch (Exception ignored) { }
+        // Fallback to text-based extraction if row structure changes
         return getValueAfterLabel("Department:", "Department");
     }
 
-    /** Gets Role from Work Summary / Professional section. */
+    /** Gets Role from Professional / Work section. Scrolls to the Role row before reading value. */
     public String getRole() {
+        try {
+            By roleRow = By.xpath("//div[contains(@class,'flex') and contains(@class,'items-center') and .//span[normalize-space()='Role']]");
+            WebElement row = wait.until(ExpectedConditions.visibilityOfElementLocated(roleRow));
+            ScrollHelper.scrollIntoStrictCenter(driver, row);
+            // Prefer the value span (usually font-medium) inside the row
+            List<WebElement> valueSpans = row.findElements(By.xpath(".//span[contains(@class,'font-medium')]"));
+            if (!valueSpans.isEmpty()) {
+                String t = valueSpans.get(0).getText();
+                if (t != null && !t.trim().isEmpty()) {
+                    return t.trim();
+                }
+            }
+            // Fallback: raw row text with label removed
+            String full = row.getText();
+            if (full != null && !full.isEmpty()) {
+                return full.replace("Role", "").replace("Role:", "").trim();
+            }
+        } catch (Exception ignored) { }
+        // Fallback to previous behaviour if structured row not found
         String role = getRoleFromWorkSummary();
         return role != null ? role.trim() : "";
     }
 
     /** Gets Industry from Professional / Work section. */
     public String getIndustry() {
+        try {
+            By industryRow = By.xpath("//div[contains(@class,'flex') and contains(@class,'items-center') and .//span[normalize-space()='Industry']]");
+            WebElement row = wait.until(ExpectedConditions.visibilityOfElementLocated(industryRow));
+            ScrollHelper.scrollIntoStrictCenter(driver, row);
+            // Prefer the value span (usually font-medium) inside the row
+            List<WebElement> valueSpans = row.findElements(By.xpath(".//span[contains(@class,'font-medium')]"));
+            if (!valueSpans.isEmpty()) {
+                String t = valueSpans.get(0).getText();
+                if (t != null && !t.trim().isEmpty()) {
+                    return t.trim();
+                }
+            }
+            // Fallback: raw row text with label removed
+            String full = row.getText();
+            if (full != null && !full.isEmpty()) {
+                return full.replace("Industry", "").replace("Industry:", "").trim();
+            }
+        } catch (Exception ignored) { }
+        // Fallback to text-based extraction if row structure changes
         return getValueAfterLabel("Industry:", "Industry");
     }
 
     /** Gets Employment Status from Professional / Work section. */
     public String getEmploymentStatus() {
-        return getValueAfterLabel("Employment Status:", "Employment Status", "Employment Type:", "Employment type");
+        try {
+            // Directly target the value <p> following the "Employment status" label <p>
+            By valueLocator = By.xpath("//p[@class='text-sm text-gray-500' and normalize-space()='Employment status']" +
+                                       "/following-sibling::p[contains(@class,'font-semibold')][1]");
+            WebElement valueEl = wait.until(ExpectedConditions.visibilityOfElementLocated(valueLocator));
+            // Use scrollIntoView so the nearest scrollable container moves and the element is visible
+            ScrollHelper.scrollIntoView(driver, valueEl);
+            String t = valueEl.getText();
+            if (t != null && !t.trim().isEmpty()) {
+                return t.trim();
+            }
+        } catch (Exception ignored) { }
+        // Fallback only on explicit Employment Status label (avoid "Employment type"/job type)
+        return getValueAfterLabel("Employment status", "Employment Status:", "Employment Status");
     }
 
     /**

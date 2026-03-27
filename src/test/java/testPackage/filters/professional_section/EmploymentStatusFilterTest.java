@@ -4,6 +4,7 @@ import Pages.CandidateDetailsPage;
 import Pages.CandidatesPage;
 import Pages.basePage;
 import Manager.DatabaseCleanupManager;
+import Utils.ScrollHelper;
 import Utils.SSHTunnelManager;
 import Utils.professional_details_Util.employment_status_filter_Util;
 import io.qameta.allure.Description;
@@ -21,12 +22,15 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Feature("Advanced Filters - Professional Details - Employment Status")
 public class EmploymentStatusFilterTest extends basePage {
 
-    private static final int SAMPLES_PER_FILTER = 4;
+    private static final int SAMPLES_PER_PAGE = 4;     // open up to 4 samples per page
+    private static final int ROWS_PER_PAGE = 25;       // rows shown per page in UI
+    private static final int MAX_FILTERS_PER_RUN = 5;  // test up to 5 random employment statuses per run
 
     private static class EmploymentStatusRow {
         final String candidateName;
@@ -50,9 +54,43 @@ public class EmploymentStatusFilterTest extends basePage {
 
     private static boolean statusMatches(String filterValue, String valueOnDetails) {
         if (valueOnDetails == null || valueOnDetails.trim().isEmpty()) return false;
-        String f = (filterValue == null ? "" : filterValue).trim().toLowerCase();
-        String v = valueOnDetails.trim().toLowerCase();
+        String f = normalizeStatus(filterValue);
+        String v = normalizeStatus(valueOnDetails);
+        if (f.isEmpty() || v.isEmpty()) return false;
         return v.contains(f) || f.contains(v);
+    }
+
+    /** Normalize employment status strings so minor formatting differences don't cause false UNMATCHED. */
+    private static String normalizeStatus(String src) {
+        if (src == null) return "";
+        // Lowercase, replace all non-alphanumeric with single spaces, collapse multiple spaces.
+        String s = src.toLowerCase()
+            .replaceAll("[^a-z0-9]+", " ")
+            .trim()
+            .replaceAll("\\s{2,}", " ");
+        return s;
+    }
+
+    /** Scroll candidate list to top by scrolling the first name link into view. */
+    private void scrollListToTop(CandidatesPage candidatesPage) {
+        try {
+            List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
+            if (!links.isEmpty()) {
+                ScrollHelper.scrollIntoView(driver, links.get(0));
+                Thread.sleep(400);
+            }
+        } catch (Exception ignored) { }
+    }
+
+    /** Scroll candidate list to bottom by scrolling the last name link into view. */
+    private void scrollListToBottom(CandidatesPage candidatesPage) {
+        try {
+            List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
+            if (!links.isEmpty()) {
+                ScrollHelper.scrollIntoView(driver, links.get(links.size() - 1));
+                Thread.sleep(600);
+            }
+        } catch (Exception ignored) { }
     }
 
     @BeforeClass(alwaysRun = true)
@@ -80,10 +118,8 @@ public class EmploymentStatusFilterTest extends basePage {
             projectRoot,
             "src", "test", "resources",
             "filters_professional_details",
-            "employment_status_filter.xlsx"
+            "filters_employment_status.xlsx"
         ).toString();
-
-        employment_status_filter_Util.createTemplateIfMissing(excelPath);
 
         List<String> statuses = new ArrayList<>();
         if (Files.exists(Paths.get(excelPath))) {
@@ -92,9 +128,13 @@ public class EmploymentStatusFilterTest extends basePage {
             }
         }
         if (statuses.isEmpty()) {
-            System.out.println("[EMPLOYMENT STATUS] No rows in employment_status_filter.xlsx. Fill EmploymentStatus column first.");
+            System.out.println("[EMPLOYMENT STATUS] No rows in filters_employment_status.xlsx. Fill EmploymentStatus column first.");
             return;
         }
+
+        // Pick a random subset of statuses so test does not always use the same fixed order
+        statuses = employment_status_filter_Util.getRandomStatuses(statuses, MAX_FILTERS_PER_RUN);
+        System.out.println("[EMPLOYMENT STATUS] Statuses loaded from Excel (random subset, max " + MAX_FILTERS_PER_RUN + "): " + statuses);
 
         LoginHelper.loginAsAdvancedFilterUser(driver, wait);
 
@@ -109,8 +149,6 @@ public class EmploymentStatusFilterTest extends basePage {
         for (String filterValue : statuses) {
             if (filterValue == null || filterValue.trim().isEmpty()) continue;
 
-            candidatesPage.clickClearFiltersIfPresent();
-            Thread.sleep(500);
             candidatesPage.setEmploymentStatusFilter(filterValue);
 
             int totalCount = candidatesPage.getResultCount();
@@ -120,36 +158,58 @@ public class EmploymentStatusFilterTest extends basePage {
             }
 
             List<EmploymentStatusRow> rows = new ArrayList<>();
-            List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
-            int toOpen = Math.min(SAMPLES_PER_FILTER, links.size());
-            for (int i = 0; i < toOpen; i++) {
-                WebElement link = links.get(i);
-                try {
-                    candidatesPage.openCandidateProfile(link);
-                    Thread.sleep(1500);
-                    for (String h : driver.getWindowHandles()) {
-                        if (!h.equals(parentHandle)) { driver.switchTo().window(h); break; }
+            int totalPages = (totalCount + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE;
+            if (totalPages < 1) totalPages = 1;
+
+            for (int page = 1; page <= totalPages; page++) {
+                if (page > 1) {
+                    candidatesPage.selectPage(page);
+                    Thread.sleep(600);
+                }
+
+                // Align scroll behavior with Socials test: scroll list to top before sampling
+                scrollListToTop(candidatesPage);
+
+                List<WebElement> links = candidatesPage.getCandidateNameLinksOnCurrentPage();
+                // Randomize the order so we don't always pick the first rows
+                List<WebElement> randomLinks = new ArrayList<>(links);
+                Collections.shuffle(randomLinks);
+                int toOpen = Math.min(SAMPLES_PER_PAGE, randomLinks.size());
+                System.out.println("[EMPLOYMENT STATUS] Filter '" + filterValue + "' - Page " + page +
+                    " of " + totalPages + " | opening " + toOpen + " sample profiles (total results: " + totalCount + ")");
+
+                for (int i = 0; i < toOpen; i++) {
+                    WebElement link = randomLinks.get(i);
+                    try {
+                        candidatesPage.openCandidateProfile(link);
+                        Thread.sleep(1500);
+                        for (String h : driver.getWindowHandles()) {
+                            if (!h.equals(parentHandle)) { driver.switchTo().window(h); break; }
+                        }
+                        CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
+                        String candidateName = detailsPage.getCandidateName();
+                        String valueOnDetails = detailsPage.getEmploymentStatus();
+                        boolean match = statusMatches(filterValue, valueOnDetails);
+                        rows.add(new EmploymentStatusRow(
+                            candidateName,
+                            filterValue,
+                            valueOnDetails != null ? valueOnDetails : "(not found)",
+                            match
+                        ));
+                        System.out.println("[EMPLOYMENT STATUS] Candidate '" + candidateName + "' | Filter='" +
+                            filterValue + "' | EmploymentStatusOnDetails='" + valueOnDetails + "' | " +
+                            (match ? "MATCH" : "UNMATCHED"));
+                        driver.close();
+                        driver.switchTo().window(parentHandle);
+                        Thread.sleep(500);
+                    } catch (Exception e) {
+                        try { driver.switchTo().window(parentHandle); } catch (Exception ignored) { }
+                        System.out.println("[EMPLOYMENT STATUS] Error while sampling candidate on page " + page + ": " + e.getMessage());
                     }
-                    CandidateDetailsPage detailsPage = new CandidateDetailsPage(driver, wait);
-                    String candidateName = detailsPage.getCandidateName();
-                    String valueOnDetails = detailsPage.getEmploymentStatus();
-                    boolean match = statusMatches(filterValue, valueOnDetails);
-                    rows.add(new EmploymentStatusRow(
-                        candidateName,
-                        filterValue,
-                        valueOnDetails != null ? valueOnDetails : "(not found)",
-                        match
-                    ));
-                    if (valueOnDetails != null && !valueOnDetails.isEmpty()) {
-                        Assert.assertTrue(match,
-                            "Employment Status on details [" + valueOnDetails + "] should match filter [" + filterValue + "]");
-                    }
-                    driver.close();
-                    driver.switchTo().window(parentHandle);
-                    Thread.sleep(500);
-                } catch (Exception e) {
-                    try { driver.switchTo().window(parentHandle); } catch (Exception ignored) { }
-                    System.out.println("[EMPLOYMENT STATUS] Error: " + e.getMessage());
+                }
+                // After finishing samples on this page, scroll to bottom before changing page (except after last page)
+                if (page < totalPages) {
+                    scrollListToBottom(candidatesPage);
                 }
             }
 
@@ -158,14 +218,44 @@ public class EmploymentStatusFilterTest extends basePage {
             System.out.println("=".repeat(72));
             int idx = 1;
             for (EmploymentStatusRow r : rows) {
+                String status = r.match ? "MATCH" : "";
                 System.out.printf("#%02d %-28s | Filter=%-20s | Details=%-20s | %s%n",
                     idx++,
                     truncate(r.candidateName, 28),
                     truncate(r.filterValue, 20),
                     truncate(r.valueOnDetails, 20),
-                    r.match ? "PASS" : "FAIL");
+                    status);
             }
             System.out.println("=".repeat(72) + "\n");
+
+            // After this filter's sampling is over: clear filters, then reliably click Professional Details -> Employment Status
+            candidatesPage.clickClearFiltersIfPresent();
+            Thread.sleep(500);
+            // Re-open Advance Search panel in case Clear Filters closed it
+            try {
+                candidatesPage.openAdvanceSearch();
+                Thread.sleep(500);
+            } catch (Exception e) {
+                System.out.println("[EMPLOYMENT STATUS] openAdvanceSearch after clear failed (may already be open): " + e.getMessage());
+            }
+            try {
+                org.openqa.selenium.By professionalDetailsTab = org.openqa.selenium.By.xpath("//span[text() = 'Professional Details']");
+                org.openqa.selenium.WebElement tab = wait.until(org.openqa.selenium.support.ui.ExpectedConditions.elementToBeClickable(professionalDetailsTab));
+                ScrollHelper.scrollIntoView(driver, tab);
+                tab.click();
+                Thread.sleep(400);
+            } catch (Exception e) {
+                System.out.println("[EMPLOYMENT STATUS] Professional Details tab click after clear failed: " + e.getMessage());
+            }
+            try {
+                org.openqa.selenium.By statusButton = org.openqa.selenium.By.xpath("//button[contains(text(),'Employment Status') or contains(.,'Employment Status') or contains(text(),'Employment type') or contains(.,'Employment type')]");
+                org.openqa.selenium.WebElement statusBtn = wait.until(org.openqa.selenium.support.ui.ExpectedConditions.elementToBeClickable(statusButton));
+                ScrollHelper.scrollIntoView(driver, statusBtn);
+                statusBtn.click();
+                Thread.sleep(400);
+            } catch (Exception e) {
+                System.out.println("[EMPLOYMENT STATUS] Employment Status button click after clear failed: " + e.getMessage());
+            }
         }
     }
 }

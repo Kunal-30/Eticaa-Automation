@@ -41,22 +41,11 @@ public class role_filter_Util {
                 Row header = sheet.createRow(0);
                 header.createCell(0).setCellValue(COL_ROLE);
 
-                String[] samples = {
-                    "Software Engineer",
-                    "Senior Software Engineer",
-                    "Team Lead",
-                    "Product Manager",
-                    "Business Analyst"
-                };
-                for (int i = 0; i < samples.length; i++) {
-                    Row row = sheet.createRow(i + 1);
-                    row.createCell(0).setCellValue(samples[i]);
-                }
-
+                // No sample data here anymore – file will be created empty
                 try (OutputStream out = Files.newOutputStream(path)) {
                     wb.write(out);
                 }
-                System.out.println("[ROLE FILTER] Template created: " + excelPath);
+                System.out.println("[ROLE FILTER] Empty template created: " + excelPath);
             }
         } catch (Exception e) {
             System.err.println("[ROLE FILTER] Failed to create template: " + e.getMessage());

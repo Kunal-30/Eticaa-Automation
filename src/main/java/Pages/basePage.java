@@ -17,14 +17,14 @@ import java.util.HashMap;
 
 import org.openqa.selenium.chrome.ChromeOptions;
 
-
 public class basePage {
     protected WebDriver driver;
     protected WebDriverWait wait;
-    
+
     /**
      * Initializes the WebDriver and WebDriverWait before each test method.
-     * Uses WebDriverManager for automatic browser driver setup, which is a best practice.
+     * Uses WebDriverManager for automatic browser driver setup, which is a best
+     * practice.
      */
     @BeforeMethod
     @Step("Setup: Launching browser and navigating to URL")
@@ -33,33 +33,41 @@ public class basePage {
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions();
 
-// Disable password manager
-Map<String, Object> prefs = new HashMap<>();
-prefs.put("credentials_enable_service", false);
-prefs.put("profile.password_manager_enabled", false);
+        // Disable password manager
+        Map<String, Object> prefs = new HashMap<>();
+        prefs.put("credentials_enable_service", false);
+        prefs.put("profile.password_manager_enabled", false);
 
-options.setExperimentalOption("prefs", prefs);
+        options.setExperimentalOption("prefs", prefs);
 
-// Disable Chrome security popups
-options.addArguments("--disable-notifications");
-options.addArguments("--disable-features=PasswordCheck");
+        // Disable Chrome security popups
+        options.addArguments("--disable-notifications");
+        options.addArguments("--disable-features=PasswordCheck");
 
-// (IMPORTANT) Start with fresh automation profile
-options.addArguments("--guest");
+        // (IMPORTANT) Start with fresh automation profile
+        options.addArguments("--guest");
+
+        // Run in visible UI mode (headless disabled for debugging/demo)
+        // options.addArguments("--headless=new");
+        // options.addArguments("--window-size=1920,1080");
+        // options.addArguments("--disable-gpu");
+        // options.addArguments("--disable-dev-shm-usage");
+        // options.addArguments("--no-sandbox");
 
         driver = new ChromeDriver(options);
 
         driver.manage().window().maximize();
         // A longer wait time of 15 seconds is more reliable for web applications
         wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-        driver.get("https://dms.eticaatest.co.in/auth/login");
-        // driver.get("https://dms.eticaa.com/auth/login");
+        // driver.get("https://dms.eticaatest.co.in/auth/login");
+        driver.get("https://dms.eticaa.com/auth/login");
         System.out.println("INFO: Browser launched and navigated to the application URL.");
     }
-    
+
     /**
      * Closes the WebDriver after each test method.
-     * This method also checks for test failures and attaches a screenshot to the Allure report.
+     * This method also checks for test failures and attaches a screenshot to the
+     * Allure report.
      *
      * @param result The result of the test method execution.
      */
@@ -71,15 +79,16 @@ options.addArguments("--guest");
             captureScreenshot();
         }
 
-       if (driver != null) {
-           driver.quit();
-           System.out.println("INFO: Browser closed successfully.");
-       }
+        if (driver != null) {
+            driver.quit();
+            System.out.println("INFO: Browser closed successfully.");
+        }
     }
-    
+
     /**
      * Attaches a screenshot to the Allure report.
      * This method is called from tearDown() only when a test has failed.
+     * 
      * @return The captured screenshot as a byte array.
      */
     @Attachment(value = "Page Screenshot", type = "image/png")

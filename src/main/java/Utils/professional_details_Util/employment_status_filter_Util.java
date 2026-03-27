@@ -41,22 +41,11 @@ public class employment_status_filter_Util {
                 Row header = sheet.createRow(0);
                 header.createCell(0).setCellValue(COL_STATUS);
 
-                String[] samples = {
-                    "Contractual",
-                    "Freelancer",
-                    "Full time",
-                    "Part time",
-                    "Internship"
-                };
-                for (int i = 0; i < samples.length; i++) {
-                    Row row = sheet.createRow(i + 1);
-                    row.createCell(0).setCellValue(samples[i]);
-                }
-
+                // No sample data here anymore – file will be created empty
                 try (OutputStream out = Files.newOutputStream(path)) {
                     wb.write(out);
                 }
-                System.out.println("[EMPLOYMENT STATUS FILTER] Template created: " + excelPath);
+                System.out.println("[EMPLOYMENT STATUS FILTER] Empty template created: " + excelPath);
             }
         } catch (Exception e) {
             System.err.println("[EMPLOYMENT STATUS FILTER] Failed to create template: " + e.getMessage());

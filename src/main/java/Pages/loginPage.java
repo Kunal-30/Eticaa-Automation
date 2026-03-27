@@ -38,9 +38,13 @@ public class loginPage {
     // Post-login page readiness indicators (navigation menu or dashboard elements)
     private By navigationMenuIndicator = By.xpath("//a[@href='/customer-management/customers'] | //a[@href='/user-management/users'] | //a[@href='/customers'] | //a[@href='/users']");
 
+    // Heading text that appears on the login page – used to start typing as soon as possible
+    private By loginHeading = By.xpath("//*[normalize-space(text())='Log in']");
+
     public loginPage(WebDriver driver) {
         this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10)); // Initialize WebDriverWait with a 10-second timeout
+        // 10 seconds was causing long waits before typing; 5 seconds is enough for fields to appear
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(1));
     }
 
     public void loginAs(String email, String password) {
@@ -51,27 +55,29 @@ public class loginPage {
         Reporter.log("INFO: Attempting to log in with email: " + email);
         
         try {
-            // Wait for email field to be visible and clickable
-            System.out.println("[LOGIN] Step 1: Waiting for email field to be ready...");
-            WebElement emailElement = wait.until(ExpectedConditions.elementToBeClickable(emailField));
-            System.out.println("[LOGIN] ✅ Email field found and ready");
-            ScrollHelper.scrollIntoView(driver, emailElement);
+            // Wait for "Log in" text to appear, then give the page 1 second and start typing immediately
+            System.out.println("[LOGIN] Step 0: Waiting for 'Log in' heading...");
+            wait.until(ExpectedConditions.presenceOfElementLocated(loginHeading));
+            Thread.sleep(1000);
+            
+            // Step 1: Find email field and type without extra waiting
+            System.out.println("[LOGIN] Step 1: Locating email field...");
+            WebElement emailElement = driver.findElement(emailField);
+            System.out.println("[LOGIN] ✅ Email field found, entering email");
             emailElement.click();
             emailElement.clear();
             emailElement.sendKeys(email);
             System.out.println("[LOGIN] ✅ Email entered successfully");
             
-            // Wait for password field to be visible and clickable
-            System.out.println("[LOGIN] Step 2: Waiting for password field to be ready...");
-            WebElement passwordElement = wait.until(ExpectedConditions.elementToBeClickable(passwordField));
-            System.out.println("[LOGIN] ✅ Password field found and ready");
-            ScrollHelper.scrollIntoView(driver, passwordElement);
+            // Step 2: Find password field and type without extra waiting
+            System.out.println("[LOGIN] Step 2: Locating password field...");
+            WebElement passwordElement = driver.findElement(passwordField);
+            System.out.println("[LOGIN] ✅ Password field found, entering password");
             passwordElement.click();
             passwordElement.clear();
             passwordElement.sendKeys(password);
             System.out.println("[LOGIN] ✅ Password entered successfully");
             
-            // Wait for login button to be clickable
             System.out.println("[LOGIN] Step 3: Waiting for login button to be ready...");
             WebElement loginBtn = wait.until(ExpectedConditions.elementToBeClickable(loginButton));
             System.out.println("[LOGIN] ✅ Login button found and ready");

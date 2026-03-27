@@ -60,7 +60,7 @@ public class CandidatesPage {
     private final By designationTabLabelForScroll = By.xpath("(//span[text()='Designation'])[3]");
     private final By departmentSectionButton = By.xpath("//button[contains(text(),'Department') or contains(.,'Department')]");
     private final By roleSectionButton = By.xpath("//button[contains(text(),'Role') or contains(.,'Role')]");
-    private final By industrySectionButton = By.xpath("//button[contains(text(),'Industry') or contains(.,'Industry')]");
+    private final By industrySectionButton = By.xpath("//button[text() = 'Industry']");
     private final By employmentStatusSectionButton = By.xpath("//button[contains(text(),'Employment Status') or contains(.,'Employment Status') or contains(text(),'Employment type') or contains(.,'Employment type')]");
 
     // New UI: Experience section (split view)
@@ -98,14 +98,7 @@ public class CandidatesPage {
         System.out.println("[CANDIDATES] Candidates page opened.");
         try { Thread.sleep(800); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         System.out.println("[CANDIDATES] Candidates page loaded.");
-        waitForLoaderGone();
-        System.out.println("[CANDIDATES] Candidates page loaded.");
-        waitForLoaderGone();
-        System.out.println("[CANDIDATES] Candidates page loaded.");
-        waitForLoaderGone();
-        System.out.println("[CANDIDATES] Candidates page loaded.");
-        waitForLoaderGone();
-        System.out.println("[CANDIDATES] Candidates page loaded.");
+    
     }
 
     @Step("Open Advance Search (All Filters) panel")
@@ -562,7 +555,47 @@ public class CandidatesPage {
      */
     @Step("Set Department filter: {option}")
     public void setDepartmentFilter(String option) {
-        setPersonalDetailsDropdownFilter(departmentSectionButton, option, "Department");
+        if (option == null || option.trim().isEmpty()) return;
+        String optText = option.trim();
+        // Ensure Professional Details tab/section is active before using Department
+        try {
+            By professionalDetailsTab = By.xpath("//span[text() = 'Professional Details']");
+            WebElement tab = wait.until(ExpectedConditions.elementToBeClickable(professionalDetailsTab));
+            ScrollHelper.scrollIntoViewAtTop(driver, tab);
+            tab.click();
+            Thread.sleep(400);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Professional Details tab not clickable: " + e.getMessage());
+        }
+        // Open Department section
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(departmentSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(departmentSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Department section button not found: " + e.getMessage());
+            return;
+        }
+        // In Department there is no suggestion dropdown; type value and press Enter
+        try {
+            By inputBy = By.xpath(
+                "//label[contains(normalize-space(.),'Department')]/following-sibling::input" +
+                " | //input[contains(@placeholder,'Department') or contains(@aria-label,'Department') or contains(@name,'department')]"
+            );
+            WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(inputBy));
+            ScrollHelper.scrollIntoView(driver, input);
+            input.clear();
+            input.sendKeys(optText);
+            Thread.sleep(600);
+            input.sendKeys(Keys.ENTER);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Department search input: " + e.getMessage());
+        }
+        applyFilter();
     }
 
     /**
@@ -570,7 +603,47 @@ public class CandidatesPage {
      */
     @Step("Set Role filter: {option}")
     public void setRoleFilter(String option) {
-        setPersonalDetailsDropdownFilter(roleSectionButton, option, "Role");
+        if (option == null || option.trim().isEmpty()) return;
+        String optText = option.trim();
+        // Ensure Professional Details tab/section is active before using Role
+        try {
+            By professionalDetailsTab = By.xpath("//span[text() = 'Professional Details']");
+            WebElement tab = wait.until(ExpectedConditions.elementToBeClickable(professionalDetailsTab));
+            ScrollHelper.scrollIntoViewAtTop(driver, tab);
+            tab.click();
+            Thread.sleep(400);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Professional Details tab not clickable (Role): " + e.getMessage());
+        }
+        // Open Role section
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(roleSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(roleSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Role section button not found: " + e.getMessage());
+            return;
+        }
+        // In Role there is no suggestion dropdown; type value and press Enter
+        try {
+            By inputBy = By.xpath(
+                "//label[contains(normalize-space(.),'Role')]/following-sibling::input" +
+                " | //input[contains(@placeholder,'Role') or contains(@aria-label,'Role') or contains(@name,'role')]"
+            );
+            WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(inputBy));
+            ScrollHelper.scrollIntoView(driver, input);
+            input.clear();
+            input.sendKeys(optText);
+            Thread.sleep(600);
+            input.sendKeys(Keys.ENTER);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Role search input: " + e.getMessage());
+        }
+        applyFilter();
     }
 
     /**
@@ -578,7 +651,47 @@ public class CandidatesPage {
      */
     @Step("Set Industry filter: {option}")
     public void setIndustryFilter(String option) {
-        setPersonalDetailsDropdownFilter(industrySectionButton, option, "Industry");
+        if (option == null || option.trim().isEmpty()) return;
+        String optText = option.trim();
+        // Ensure Professional Details tab/section is active before using Industry
+        try {
+            By professionalDetailsTab = By.xpath("//span[text() = 'Professional Details']");
+            WebElement tab = wait.until(ExpectedConditions.elementToBeClickable(professionalDetailsTab));
+            ScrollHelper.scrollIntoViewAtTop(driver, tab);
+            tab.click();
+            Thread.sleep(400);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Professional Details tab not clickable (Industry): " + e.getMessage());
+        }
+        // Open Industry section
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(industrySectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(industrySectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Industry section button not found: " + e.getMessage());
+            return;
+        }
+        // In Industry there may be no suggestion dropdown; type value and press Enter
+        try {
+            By inputBy = By.xpath(
+                "//label[contains(normalize-space(.),'Industry')]/following-sibling::input" +
+                " | //input[contains(@placeholder,'Industry') or contains(@aria-label,'Industry') or contains(@name,'industry')]"
+            );
+            WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(inputBy));
+            ScrollHelper.scrollIntoView(driver, input);
+            input.clear();
+            input.sendKeys(optText);
+            Thread.sleep(600);
+            input.sendKeys(Keys.ENTER);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Industry search input: " + e.getMessage());
+        }
+        applyFilter();
     }
 
     /**
@@ -641,7 +754,43 @@ public class CandidatesPage {
      */
     @Step("Set Employment Status filter: {option}")
     public void setEmploymentStatusFilter(String option) {
-        setPersonalDetailsDropdownFilter(employmentStatusSectionButton, option, "Employment Status");
+        if (option == null || option.trim().isEmpty()) return;
+        String optText = option.trim();
+        // Ensure Professional Details tab/section is active before using Employment Status
+        try {
+            By professionalDetailsTab = By.xpath("//span[text() = 'Professional Details']");
+            WebElement tab = wait.until(ExpectedConditions.elementToBeClickable(professionalDetailsTab));
+            ScrollHelper.scrollIntoViewAtTop(driver, tab);
+            tab.click();
+            Thread.sleep(400);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Professional Details tab not clickable (Employment Status): " + e.getMessage());
+        }
+        // Open Employment Status section
+        try {
+            WebElement btn = wait.until(ExpectedConditions.presenceOfElementLocated(employmentStatusSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            Thread.sleep(300);
+            btn = wait.until(ExpectedConditions.elementToBeClickable(employmentStatusSectionButton));
+            ScrollHelper.scrollIntoViewAtTop(driver, btn);
+            btn.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Employment Status section button not found: " + e.getMessage());
+            return;
+        }
+        // Open the checkbox values and click the <p> whose text matches the status from Excel
+        try {
+            // These are the visible options: Contractual, Internship, Full time, Part Time, Freelancer, etc.
+            By optionLocator = By.xpath("//p[normalize-space(text())='" + optText + "']");
+            WebElement opt = wait.until(ExpectedConditions.elementToBeClickable(optionLocator));
+            ScrollHelper.scrollIntoView(driver, opt);
+            opt.click();
+            Thread.sleep(500);
+        } catch (Exception e) {
+            System.out.println("[CANDIDATES] Employment Status option <p> with text '" + optText + "' not clickable: " + e.getMessage());
+        }
+        applyFilter();
     }
 
     /** Opens a Personal / Professional / Socials section, selects the option by visible text, then applies filter. */

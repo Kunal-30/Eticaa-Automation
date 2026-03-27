@@ -21,7 +21,7 @@ public class DatabaseUtil {
     
     // Database connection parameters - Can be set via system properties
     // Default URL uses localhost:5432 with SSL disabled, as SSH tunnel forwards this port.
-    private static String DB_URL = System.getProperty("db.url", "jdbc:postgresql://localhost:5432/DEVServer?sslmode=disable");
+    private static String DB_URL = System.getProperty("db.url", "jdbc:postgresql://localhost:5433/eticaa?sslmode=disable&options=-c%20TimeZone=Asia/Kolkata");
     private static String DB_USER = System.getProperty("db.user", "postgres");
     private static String DB_PASSWORD = System.getProperty("db.password", "postgres");
     
